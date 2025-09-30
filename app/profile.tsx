@@ -158,7 +158,7 @@ export default function ProfileSettings() {
     try {
       // Only sign out from Firebase, keep user persistence for testing
       await signOut(auth);
-      router.replace("/landing");
+      router.replace("/");
     } catch (error) {
       console.error("Soft sign out error:", error);
       Alert.alert("Error", "Could not sign out");
@@ -180,7 +180,7 @@ export default function ProfileSettings() {
             // Clear user persistence data
             await clearLastLoggedInUser();
             await signOut(auth);
-            router.replace("/landing");
+            router.replace("/");
           } catch (error) {
             console.error("Sign out error:", error);
             Alert.alert("Error", "Could not sign out");

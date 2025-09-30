@@ -3,12 +3,7 @@ import "react-native-get-random-values";
 // Polyfill for buffer
 global.Buffer = global.Buffer || require("buffer").Buffer;
 
-// IMPORTANT: These polyfills must be imported FIRST
-import "react-native-get-random-values";
-// Polyfill for buffer
-global.Buffer = global.Buffer || require("buffer").Buffer;
-
-import { Slot, useRouter, useSegments } from "expo-router";
+import { Slot, usePathname, useRouter, useSegments } from "expo-router";
 import { onAuthStateChanged, User } from "firebase/auth";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -19,6 +14,7 @@ export default function RootLayout() {
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const segments = useSegments();
+  const pathname = usePathname();
 
   useEffect(() => {
     // Start Firebase auth listener
@@ -51,9 +47,9 @@ export default function RootLayout() {
         }
       }
     } else {
-      // No user, go to landing (landing will handle welcome back logic)
-      if (current !== "/landing") {
-        router.replace("/landing");
+      // No user, go to index (index will handle welcome back logic)
+      if (current !== "/") {
+        router.replace("/");
       }
     }
   };

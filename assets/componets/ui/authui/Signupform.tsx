@@ -78,7 +78,7 @@ export default function Signupform() {
         setConfirmation(confirmationResult);
 
         // Store user in localdb with phone as email placeholder
-        // We'll update this after phone verification is complete
+        
         const newUser = await createUser({
           name: username,
           email: phone, // Using phone as email placeholder until verified

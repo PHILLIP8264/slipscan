@@ -4,21 +4,31 @@
     "slug": "SlipScan",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/images/spendly icon.png",
     "scheme": "slipscan",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/spendly icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#007AFF"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.phillip12.SlipScan"
+      "package": "com.developer.SlipScan",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/spendly icon.png",
+        "backgroundColor": "#007AFF"
+      }
     },
     "web": {
       "output": "static"
     },
-    "plugins": ["expo-router"],
+    "plugins": ["expo-router", "expo-dev-client"],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

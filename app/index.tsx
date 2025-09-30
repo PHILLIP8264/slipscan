@@ -16,7 +16,6 @@ import {
   saveLastLoggedInUser,
 } from "../utils/userPersistence";
 
-// Import our new components
 import LandingView from "../assets/componets/ui/authui/LandingView";
 import LoadingScreen from "../assets/componets/ui/authui/LoadingScreen";
 import LoginFormView from "../assets/componets/ui/authui/LoginFormView";
