@@ -20,41 +20,70 @@ export default function ScanReceipt() {
 
   const onScan = async () => {
     setIsScanning(true);
+    console.log("Starting scan...");
+
     try {
+      console.log("Calling DocumentScanner.startScanner...");
+
+      // Try with basic OCR first to avoid AI crashes during development
       const result = await DocumentScanner.startScanner({
         pageLimit: 6,
         allowGalleryImport: true,
         jpeg: true,
         pdf: true,
         scannerMode: "full",
+        useAI: false, // Disable AI processing temporarily
       });
 
       console.log("ML Kit scan result:", result);
+      console.log("Scan successful, pages:", result.pages?.length || 0);
       setScanResult(result);
 
-      // Show different message based on OCR success
-      const ocrMessage = result.receiptData
-        ? `\nMerchant: ${result.receiptData.merchant}\nTotal: $${
-            result.receiptData.total
-          }\nConfidence: ${Math.round(result.receiptData.confidence * 100)}%`
-        : "\nOCR processing available";
+      // Show different message based on AI/OCR success
+      let processingMessage = "\nProcessing available";
+      if (result.receiptData) {
+        const isAI = "aiMetadata" in result.receiptData;
+        const processingType = isAI ? "AI" : "OCR";
+        processingMessage = `\n${processingType} Processing:\nMerchant: ${
+          result.receiptData.merchant
+        }\nTotal: $${result.receiptData.total}\nConfidence: ${Math.round(
+          result.receiptData.confidence * 100
+        )}%`;
+
+        if (isAI && "aiMetadata" in result.receiptData) {
+          processingMessage += `\nMethod: ${result.receiptData.aiMetadata.processingMethod}`;
+        }
+      }
 
       Alert.alert(
         "Document Scanned Successfully! 📸",
         `${result.pages.length} page(s) captured${
           result.pdfUri ? "\nPDF generated" : ""
-        }${ocrMessage}`,
+        }${processingMessage}`,
         [
           { text: "Scan Another", onPress: () => setScanResult(null) },
           { text: "Edit & Save", onPress: () => processReceipt(result) },
         ]
       );
     } catch (e: any) {
-      console.warn("Scan failed:", e);
-      Alert.alert("Scan Failed", e.message ?? String(e), [
-        { text: "Try Again", onPress: onScan },
-        { text: "Cancel", style: "cancel" },
-      ]);
+      console.error("Scan failed:", e);
+      console.error("Stack trace:", e.stack);
+
+      let errorMessage = "Unknown error occurred";
+      if (e.message) {
+        errorMessage = e.message;
+      } else if (typeof e === "string") {
+        errorMessage = e;
+      }
+
+      Alert.alert(
+        "Scan Failed",
+        `Error: ${errorMessage}\n\nPlease try again or check app permissions.`,
+        [
+          { text: "Try Again", onPress: onScan },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
     } finally {
       setIsScanning(false);
     }
@@ -64,11 +93,12 @@ export default function ScanReceipt() {
     try {
       let receiptData = result.receiptData;
 
-      // If OCR data not available, try to extract it now
+      // If OCR data not available, try to extract it now with basic OCR
       if (!receiptData && result.pages.length > 0) {
         Alert.alert("Processing", "Extracting text from receipt...");
         receiptData = await DocumentScanner.parseReceipt(
-          result.pages[0].imageUri
+          result.pages[0].imageUri,
+          false // Use basic OCR processing for now
         );
       }
 
@@ -95,10 +125,36 @@ export default function ScanReceipt() {
       }
     } catch (error: any) {
       console.error("Receipt processing error:", error);
+      console.error("Processing stack trace:", error.stack);
+
       Alert.alert(
         "Processing Error",
-        error.message || "Failed to process receipt",
-        [{ text: "Try Again", onPress: () => setScanResult(null) }]
+        `Failed to process receipt: ${
+          error.message || "Unknown error"
+        }\n\nYou can still save the scanned image manually.`,
+        [
+          { text: "Try Again", onPress: () => setScanResult(null) },
+          {
+            text: "Save Image Only",
+            onPress: () => {
+              // Navigate to edit screen with minimal data
+              router.push({
+                pathname: "/EditReceipt",
+                params: {
+                  receiptData: JSON.stringify({
+                    merchant: "Unknown",
+                    total: "0.00",
+                    date: new Date().toLocaleDateString(),
+                    items: [],
+                    rawText: "Processing failed",
+                    confidence: 0.1,
+                  }),
+                  imageUri: result.pages[0]?.imageUri || "",
+                },
+              });
+            },
+          },
+        ]
       );
     }
   };
@@ -127,18 +183,24 @@ export default function ScanReceipt() {
         </Text>
         <Text style={styles.instructionsText}>
           {Platform.OS === "android"
-            ? "Use Google's advanced document scanner with automatic edge detection, perspective correction, and image enhancement."
+            ? "Use Google's advanced document scanner with AI-powered receipt processing for superior accuracy and understanding."
             : "Take a photo of your receipt using the camera."}
         </Text>
 
         {Platform.OS === "android" && (
           <View style={styles.featuresContainer}>
             <Text style={styles.featuresTitle}>Features:</Text>
+            <Text style={styles.featureItem}>
+              • AI-powered document understanding
+            </Text>
+            <Text style={styles.featureItem}>
+              • Intelligent text recognition
+            </Text>
+            <Text style={styles.featureItem}>• Smart categorization</Text>
             <Text style={styles.featureItem}>• Automatic edge detection</Text>
-            <Text style={styles.featureItem}>• Perspective correction</Text>
-            <Text style={styles.featureItem}>• Image enhancement</Text>
-            <Text style={styles.featureItem}>• Multi-page scanning</Text>
-            <Text style={styles.featureItem}>• PDF generation</Text>
+            <Text style={styles.featureItem}>
+              • Multi-page scanning & PDF generation
+            </Text>
           </View>
         )}
       </View>
@@ -196,10 +258,15 @@ export default function ScanReceipt() {
             ))}
           </ScrollView>
 
-          {/* OCR Data Display */}
+          {/* AI/OCR Data Display */}
           {scanResult.receiptData && (
             <View style={styles.ocrContainer}>
-              <Text style={styles.ocrTitle}>Receipt Data</Text>
+              <Text style={styles.ocrTitle}>
+                {"aiMetadata" in scanResult.receiptData
+                  ? "AI-Processed"
+                  : "OCR"}{" "}
+                Receipt Data
+              </Text>
               <View style={styles.ocrRow}>
                 <Text style={styles.ocrLabel}>Merchant:</Text>
                 <Text style={styles.ocrValue}>
@@ -224,6 +291,24 @@ export default function ScanReceipt() {
                   {Math.round(scanResult.receiptData.confidence * 100)}%
                 </Text>
               </View>
+
+              {/* AI Metadata Display */}
+              {"aiMetadata" in scanResult.receiptData && (
+                <>
+                  <View style={styles.ocrRow}>
+                    <Text style={styles.ocrLabel}>AI Method:</Text>
+                    <Text style={styles.ocrValue}>
+                      {scanResult.receiptData.aiMetadata.processingMethod}
+                    </Text>
+                  </View>
+                  <View style={styles.ocrRow}>
+                    <Text style={styles.ocrLabel}>Document Layout:</Text>
+                    <Text style={styles.ocrValue}>
+                      {scanResult.receiptData.aiMetadata.documentLayout}
+                    </Text>
+                  </View>
+                </>
+              )}
               {scanResult.receiptData.items.length > 0 && (
                 <View>
                   <Text style={styles.ocrLabel}>

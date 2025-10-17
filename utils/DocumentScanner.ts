@@ -2,6 +2,7 @@
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { Platform } from "react-native";
+import AIReceiptProcessor, { AIReceiptData } from "../utils/AIReceiptProcessor";
 import DocumentScannerNative from "../utils/DocumentScannerNative";
 import OCRModule, { ReceiptData } from "../utils/OCRModule";
 
@@ -11,6 +12,7 @@ export type ScannerOptions = {
   jpeg?: boolean;
   pdf?: boolean;
   scannerMode?: "base" | "full";
+  useAI?: boolean; // Enable AI-powered processing
 };
 
 export type Page = { imageUri?: string };
@@ -18,7 +20,7 @@ export type ScanResult = {
   pages: Page[];
   pdfUri?: string;
   pdfPageCount?: number;
-  receiptData?: ReceiptData; // OCR processed receipt data
+  receiptData?: ReceiptData | AIReceiptData; // OCR or AI processed receipt data
 };
 
 const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
@@ -41,16 +43,39 @@ const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
         pdfPageCount: result.pdfPageCount,
       };
 
-      // Process first page with OCR if available
+      // Process first page with AI or OCR if available
       if (result.pages.length > 0 && result.pages[0].imageUri) {
         try {
-          const receiptData = await OCRModule.parseReceipt(
-            result.pages[0].imageUri
-          );
+          let receiptData: ReceiptData | AIReceiptData;
+
+          // Use AI processing if enabled and available
+          if (opts?.useAI) {
+            try {
+              receiptData = await AIReceiptProcessor.processReceiptWithAI(
+                result.pages[0].imageUri
+              );
+              console.log("AI processing successful");
+            } catch (aiError) {
+              console.warn(
+                "AI processing failed, falling back to OCR:",
+                aiError
+              );
+              // Fallback to traditional OCR
+              receiptData = await OCRModule.parseReceipt(
+                result.pages[0].imageUri
+              );
+            }
+          } else {
+            // Use traditional OCR
+            receiptData = await OCRModule.parseReceipt(
+              result.pages[0].imageUri
+            );
+          }
+
           return { ...scanResult, receiptData };
-        } catch (ocrError) {
-          console.warn("OCR processing failed:", ocrError);
-          // Return scan result without OCR data
+        } catch (processingError) {
+          console.warn("Receipt processing failed:", processingError);
+          // Return scan result without receipt data
           return scanResult;
         }
       }
@@ -139,10 +164,22 @@ const extractText = async (imageUri: string) => {
   }
 };
 
-const parseReceipt = async (imageUri: string) => {
+const parseReceipt = async (imageUri: string, useAI: boolean = false) => {
   if (Platform.OS === "android") {
     try {
-      return await OCRModule.parseReceipt(imageUri);
+      if (useAI) {
+        try {
+          // Try AI-powered processing first
+          return await AIReceiptProcessor.processReceiptWithAI(imageUri);
+        } catch (aiError) {
+          console.warn("AI processing failed, falling back to OCR:", aiError);
+          // Fallback to traditional OCR
+          return await OCRModule.parseReceipt(imageUri);
+        }
+      } else {
+        // Use traditional OCR
+        return await OCRModule.parseReceipt(imageUri);
+      }
     } catch (error) {
       console.error("Receipt parsing failed:", error);
       throw error;
@@ -152,4 +189,23 @@ const parseReceipt = async (imageUri: string) => {
   }
 };
 
-export default { startScanner, extractText, parseReceipt };
+// New AI-enhanced functions
+const enhanceOCRWithAI = async (ocrText: string) => {
+  if (Platform.OS === "android") {
+    try {
+      return await AIReceiptProcessor.enhanceOCRWithAI(ocrText);
+    } catch (error) {
+      console.error("OCR enhancement failed:", error);
+      throw error;
+    }
+  } else {
+    throw new Error("AI enhancement is only available on Android");
+  }
+};
+
+export default {
+  startScanner,
+  extractText,
+  parseReceipt,
+  enhanceOCRWithAI,
+};

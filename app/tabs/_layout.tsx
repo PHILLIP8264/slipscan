@@ -24,6 +24,8 @@ export default function Layout() {
             iconName = "home";
           } else if (route.name === "budget") {
             iconName = "wallet";
+          } else if (route.name === "search") {
+            iconName = "search";
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -45,6 +47,16 @@ export default function Layout() {
           headerTintColor: "white",
           headerShadowVisible: false,
           headerRight: () => <SettingsButton color="#000" />,
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          title: "Search Receipts",
+          headerStyle: { backgroundColor: "#28a745" },
+          headerTitleStyle: { color: "#fff", fontWeight: "bold" },
+          headerTintColor: "#fff",
+          headerRight: () => <SettingsButton color="#fff" />,
         }}
       />
       <Tabs.Screen
