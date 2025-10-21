@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 export type BudgetTab = 'past' | 'upcoming' | 'current';
 
@@ -18,6 +18,8 @@ export const BudgetTabs: React.FC<BudgetTabsProps> = ({
   selectedTab,
   onTabChange,
 }) => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const screenWidth = Dimensions.get('window').width;
   const TabButton = ({ tab, title }: { tab: BudgetTab; title: string }) => (
     <TouchableOpacity
       style={[
@@ -38,7 +40,19 @@ export const BudgetTabs: React.FC<BudgetTabsProps> = ({
   );
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsContainer}>
+    <ScrollView 
+      ref={scrollViewRef}
+      horizontal 
+      showsHorizontalScrollIndicator={false} 
+      style={styles.tabsContainer}
+      bounces={false}
+      overScrollMode="never"
+      contentContainerStyle={styles.scrollContent}
+      pagingEnabled={false}
+      decelerationRate="fast"
+      snapToInterval={screenWidth * 0.4} // Snap to intervals
+      snapToAlignment="start"
+    >
       {tabOptions.map(({ tab, title }) => (
         <TabButton key={tab} tab={tab} title={title} />
       ))}
@@ -49,27 +63,42 @@ export const BudgetTabs: React.FC<BudgetTabsProps> = ({
 const styles = StyleSheet.create({
   tabsContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 20,
+    backgroundColor: 'transparent',
+  },
+  scrollContent: {
+    paddingRight: 16,
+    alignItems: 'flex-start',
   },
   tabButton: {
+    marginTop: 40,
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 14,
     marginRight: 12,
     backgroundColor: 'white',
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    minWidth: 120,
+    borderRadius: 15,
+    borderWidth: 0,
+    minWidth: 130,
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   activeTabButton: {
     backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    elevation: 4,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    transform: [{ scale: 1.02 }],
   },
   tabButtonText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 15,
+    color: 'black',
+    fontWeight: '600',
   },
   activeTabButtonText: {
     color: 'white',

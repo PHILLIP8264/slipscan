@@ -6,17 +6,17 @@ import { Alert } from "react-native";
 import { auth } from "../firebaseConfig";
 import { getUserByEmail } from "../utils/CRUD/usercrud";
 import {
-  authenticateWithBiometrics,
-  isBiometricsAvailable,
+    authenticateWithBiometrics,
+    isBiometricsAvailable,
 } from "../utils/biometrics";
 import {
   clearLastLoggedInUser,
+  clearUserSession,
+  createUserSession,
   getLastLoggedInUser,
   LastLoggedInUser,
   saveLastLoggedInUser,
-} from "../utils/userPersistence";
-
-import LandingView from "../assets/componets/ui/authui/LandingView";
+} from "../utils/userPersistence";import LandingView from "../assets/componets/ui/authui/LandingView";
 import LoadingScreen from "../assets/componets/ui/authui/LoadingScreen";
 import LoginFormView from "../assets/componets/ui/authui/LoginFormView";
 import WelcomeBackView from "../assets/componets/ui/authui/WelcomeBackView";
@@ -49,21 +49,24 @@ export default function Landing() {
   }, []);
 
   useEffect(() => {
-    if (state === "welcome-back") {
+    if (state === "welcome-back" || state === "returning") {
       checkBiometrics();
     }
   }, [state]);
 
   const initializeLanding = async () => {
     try {
+      // Clear any existing session when app starts (but keep last user info)
+      await clearUserSession();
+      
       const [rememberedUser, hasLoggedInBefore] = await Promise.all([
         getLastLoggedInUser(),
         AsyncStorage.getItem("hasLoggedIn"),
       ]);
 
-      if (rememberedUser) {
+      if (rememberedUser && hasLoggedInBefore) {
         setLastUser(rememberedUser);
-        setState("welcome-back");
+        setState("returning");
       } else if (hasLoggedInBefore) {
         setState("returning");
       } else {
@@ -78,6 +81,45 @@ export default function Landing() {
   const checkBiometrics = async () => {
     const info = await isBiometricsAvailable();
     setBiometricsInfo(info);
+  };
+
+  const handleBiometricLoginForReturning = async () => {
+    if (!lastUser) {
+      Alert.alert("Error", "No user information found");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('Starting biometric login for returning user...');
+      
+      // Authenticate with biometrics
+      const biometricResult = await authenticateWithBiometrics(
+        `Login as ${lastUser.name}`
+      );
+
+      if (biometricResult.success) {
+        console.log('Biometric authentication successful, showing simplified login');
+        
+        // Pre-fill email and show login form for password
+        setEmail(lastUser.email);
+        setState("login-form");
+      } else {
+        throw new Error(biometricResult.error || 'Biometric authentication failed');
+      }
+    } catch (error: any) {
+      console.error("Biometric login error:", error);
+      Alert.alert(
+        "Biometric Login Failed", 
+        "Please try again or use password login",
+        [
+          { text: "Use Password", onPress: () => showLoginForm() },
+          { text: "Try Again", onPress: () => handleBiometricLoginForReturning() }
+        ]
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSwitchUser = async () => {
@@ -136,27 +178,35 @@ export default function Landing() {
       return;
     }
 
+    console.log('Starting email login process...');
     setLoginLoading(true);
     try {
+      console.log('Signing in with Firebase...');
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
+      console.log('Firebase login successful, getting user data...');
+      
       const userData = await getUserByEmail(userCredential.user.email || email);
 
       if (userData) {
-        await saveLastLoggedInUser({
-          userId: userCredential.user.uid,
-          name: userData.name,
-          email: userData.email,
-          loginMethod: "email",
-          loginDate: new Date().toISOString(),
-        });
+        console.log('Creating user session...');
+        // Create session instead of persistent login
+        await createUserSession(
+          userCredential.user.uid,
+          userData.email
+        );
+        
+        // Mark that user has logged in before (for showing returning user UI)
+        await AsyncStorage.setItem("hasLoggedIn", "true");
+        console.log('Session created successfully, navigating to /tabs');
       }
 
       router.replace("/tabs");
     } catch (error: any) {
+      console.error('Login error:', error);
       Alert.alert("Login Error", error.message);
     } finally {
       setLoginLoading(false);
@@ -242,7 +292,11 @@ export default function Landing() {
     <LandingView
       state={state as "first-time" | "returning"}
       onLogin={showLoginForm}
+      onBiometricLogin={handleBiometricLoginForReturning}
       onSignup={() => router.push("/signup")}
+      lastUser={lastUser}
+      canUseBiometrics={biometricsInfo.available && state === "returning" && lastUser !== null}
+      biometricsType={biometricsInfo.type}
     />
   );
 }

@@ -1,22 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
-import { Receipt } from '../../utils/localdb';
+import React, { useEffect, useState } from 'react';
 import {
-  listReceipts,
-  getReceiptsByMerchant,
-  getReceiptsByCategory,
-  getReceiptsByTag,
-  searchReceiptsByOCR,
-  getReceiptsInDateRange,
-  getReceiptsInAmountRange,
-} from '../../utils/CRUD/receiptcrud';
+  Alert,
+  Animated,
+  RefreshControl,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  View
+} from 'react-native';
 import {
-  SearchBar,
-  FilterButtons,
   AmountRangeFilter,
+  FilterButtons,
   ReceiptList,
+  SearchBar,
   type SearchFilter,
 } from '../../assets/componets/search';
+import {
+  getReceiptsByCategory,
+  getReceiptsByMerchant,
+  getReceiptsByTag,
+  getReceiptsInAmountRange,
+  listReceipts,
+  searchReceiptsByOCR
+} from '../../utils/CRUD/receiptcrud';
+import { Receipt } from '../../utils/localdb';
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +34,7 @@ export default function SearchPage() {
   const [selectedFilter, setSelectedFilter] = useState<SearchFilter>('all');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+  const [scrollY] = useState(new Animated.Value(0));
 
   useEffect(() => {
     loadAllReceipts();
@@ -114,43 +122,121 @@ export default function SearchPage() {
     console.log('Receipt pressed:', receipt._id);
   };
 
+  const getSearchStats = () => {
+    const totalReceipts = receipts.length;
+    const foundReceipts = filteredReceipts.length;
+    const totalAmount = receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
+    const filteredAmount = filteredReceipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
+    
+    return { totalReceipts, foundReceipts, totalAmount, filteredAmount };
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const stats = getSearchStats();
+
   return (
-    <View style={styles.container}>
-      <SearchBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onClear={handleClearSearch}
-        onSubmit={handleSearch}
-      />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#28a745" />
+      
+      
+          
 
-      <FilterButtons
-        selectedFilter={selectedFilter}
-        onFilterChange={setSelectedFilter}
-      />
+      <Animated.ScrollView
+        style={styles.content}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        bouncesZoom={false}
+        alwaysBounceVertical={false}
+        scrollEventThrottle={30}
+        decelerationRate="normal"
+        overScrollMode="auto"
+      >
+        <View style={styles.searchSection}>
+          <SearchBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onClear={handleClearSearch}
+            onSubmit={handleSearch}
+          />
 
-      {selectedFilter === 'amount' && (
-        <AmountRangeFilter
-          minAmount={minAmount}
-          maxAmount={maxAmount}
-          onMinAmountChange={setMinAmount}
-          onMaxAmountChange={setMaxAmount}
+          <FilterButtons
+            selectedFilter={selectedFilter}
+            onFilterChange={setSelectedFilter}
+          />
+
+          {selectedFilter === 'amount' && (
+            <AmountRangeFilter
+              minAmount={minAmount}
+              maxAmount={maxAmount}
+              onMinAmountChange={setMinAmount}
+              onMaxAmountChange={setMaxAmount}
+            />
+          )}
+        </View>
+
+        <ReceiptList
+          receipts={filteredReceipts}
+          loading={loading}
+          refreshing={false} // Handle refresh at page level
+          onRefresh={() => {}}
+          onReceiptPress={handleReceiptPress}
         />
-      )}
-
-      <ReceiptList
-        receipts={filteredReceipts}
-        loading={loading}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        onReceiptPress={handleReceiptPress}
-      />
-    </View>
+      </Animated.ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
+  },
+
+  statsCards: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statsCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    backdropFilter: 'blur(10px)',
+  },
+  statsNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 2,
+  },
+  statsLabel: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  content: {
+    flex: 1,
+    marginTop: -20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#f8f9fa',
+    overflow: 'hidden',
+  },
+  searchSection: {
+    paddingTop: 20,
+    backgroundColor: 'transparent',
   },
 });

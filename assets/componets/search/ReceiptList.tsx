@@ -1,8 +1,8 @@
 import React from 'react';
-import { FlatList, RefreshControl, Text, StyleSheet } from 'react-native';
-import { Receipt } from '../../utils/localdb';
-import { ReceiptCard } from './ReceiptCard';
+import { FlatList, RefreshControl, StyleSheet, Text } from 'react-native';
+import { Receipt } from '../../../utils/localdb';
 import { EmptyState } from './EmptyState';
+import { ReceiptCard } from './ReceiptCard';
 
 interface ReceiptListProps {
   receipts: Receipt[];
@@ -43,6 +43,15 @@ export const ReceiptList: React.FC<ReceiptListProps> = ({
           <EmptyState loading={loading} />
         }
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        alwaysBounceVertical={false}
+        scrollEventThrottle={16}
+        decelerationRate="normal"
+        overScrollMode="auto"
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={21}
+        initialNumToRender={10}
       />
     </>
   );

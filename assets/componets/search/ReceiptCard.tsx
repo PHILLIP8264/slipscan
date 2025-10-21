@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Receipt } from '../../utils/localdb';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Receipt } from '../../../utils/localdb';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -35,7 +35,7 @@ export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, onPress }) =>
       
       {receipt.tags.length > 0 && (
         <View style={styles.tagsContainer}>
-          {receipt.tags.map((tag, index) => (
+          {receipt.tags.map((tag: string, index: number) => (
             <Text key={index} style={styles.tag}>
               {tag}
             </Text>
@@ -56,14 +56,16 @@ const styles = StyleSheet.create({
   receiptCard: {
     backgroundColor: 'white',
     margin: 8,
-    marginHorizontal: 16,
-    padding: 16,
-    borderRadius: 8,
-    elevation: 2,
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 16,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    borderWidth: 0.5,
+    borderColor: '#f0f0f0',
   },
   receiptHeader: {
     flexDirection: 'row',
@@ -74,13 +76,14 @@ const styles = StyleSheet.create({
   merchantName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1a1a1a',
     flex: 1,
+    marginRight: 12,
   },
   amount: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#28a745',
+    color: '#4285F4',
   },
   receiptDetails: {
     flexDirection: 'row',
@@ -89,16 +92,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   category: {
-    fontSize: 14,
-    color: '#666',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    fontSize: 13,
+    color: '#495057',
+    backgroundColor: '#e9ecef',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    fontWeight: '600',
   },
   date: {
     fontSize: 14,
-    color: '#666',
+    color: '#6c757d',
+    fontWeight: '500',
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -107,13 +112,14 @@ const styles = StyleSheet.create({
   },
   tag: {
     fontSize: 12,
-    color: '#007AFF',
-    backgroundColor: '#e6f3ff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginRight: 6,
-    marginBottom: 4,
+    color: '#4285F4',
+    backgroundColor: '#e8f0fe',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 6,
+    fontWeight: '600',
   },
   ocrText: {
     fontSize: 12,

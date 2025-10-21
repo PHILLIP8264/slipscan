@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 export type SearchFilter = 'all' | 'merchant' | 'category' | 'tag' | 'content' | 'date' | 'amount';
 
@@ -41,7 +41,24 @@ export const FilterButtons: React.FC<FilterButtonsProps> = ({
   );
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersContainer}>
+    <ScrollView 
+      horizontal 
+      showsHorizontalScrollIndicator={false} 
+      style={styles.filtersContainer}
+      bounces={false}
+      alwaysBounceHorizontal={false}
+      decelerationRate="fast"
+      scrollEventThrottle={30}
+      
+      contentContainerStyle={styles.scrollContent}
+      pagingEnabled={false}
+      snapToInterval={120}
+      snapToAlignment="start"
+      directionalLockEnabled={true}
+      contentOffset={{ x: 0, y: 0 }}
+      contentInset={{ left: 0, right: 50, top: 0, bottom: 0 }}
+      automaticallyAdjustContentInsets={false}
+    >
       {filterOptions.map(({ filter, title }) => (
         <FilterButton key={filter} filter={filter} title={title} />
       ))}
@@ -51,28 +68,41 @@ export const FilterButtons: React.FC<FilterButtonsProps> = ({
 
 const styles = StyleSheet.create({
   filtersContainer: {
-    paddingHorizontal: 16,
+    paddingLeft: 20,
+    paddingRight: 200,
     marginBottom: 16,
+    paddingVertical: 8,
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginRight: 10,
+    backgroundColor: '#f0f2f5',
+    borderRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   activeFilterButton: {
-    backgroundColor: '#28a745',
-    borderColor: '#28a745',
+    backgroundColor: '#4285F4',
+    elevation: 3,
+    shadowOpacity: 0.2,
   },
   filterButtonText: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '600',
+    color: '#495057',
   },
   activeFilterButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  scrollContent: {
+    paddingLeft: 0,
+    paddingRight: 20,
+    alignItems: 'center',
+    minWidth: '100%',
   },
 });

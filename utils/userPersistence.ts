@@ -2,6 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // AsyncStorage keys
 const LAST_USER_KEY = "lastLoggedInUser";
+const SESSION_KEY = "currentSession";
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+export interface UserSession {
+  userId: string;
+  email: string;
+  startTime: string;
+  lastActivity: string;
+  isActive: boolean;
+}
 
 export interface LastLoggedInUser {
   email: string;
@@ -108,5 +118,96 @@ export const updateLastLoggedInUser = async (
   } catch (error) {
     console.error("Error updating last logged-in user:", error);
     throw error;
+  }
+};
+
+/**
+ * Create a new user session
+ */
+export const createUserSession = async (userId: string, email: string): Promise<void> => {
+  try {
+    const session: UserSession = {
+      userId,
+      email,
+      startTime: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+      isActive: true,
+    };
+    
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    console.log("User session created for:", email);
+  } catch (error) {
+    console.error("Error creating user session:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get current user session
+ */
+export const getCurrentSession = async (): Promise<UserSession | null> => {
+  try {
+    const sessionData = await AsyncStorage.getItem(SESSION_KEY);
+    if (sessionData) {
+      const session: UserSession = JSON.parse(sessionData);
+      
+      // Check if session is still valid (within timeout period)
+      const now = new Date();
+      const lastActivity = new Date(session.lastActivity);
+      const timeDiff = now.getTime() - lastActivity.getTime();
+      
+      if (timeDiff > SESSION_TIMEOUT || !session.isActive) {
+        // Session expired or inactive
+        await clearUserSession();
+        return null;
+      }
+      
+      return session;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting current session:", error);
+    return null;
+  }
+};
+
+/**
+ * Update session activity (call this on user interactions)
+ */
+export const updateSessionActivity = async (): Promise<void> => {
+  try {
+    const session = await getCurrentSession();
+    if (session) {
+      session.lastActivity = new Date().toISOString();
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+  } catch (error) {
+    console.error("Error updating session activity:", error);
+  }
+};
+
+/**
+ * Clear current user session
+ */
+export const clearUserSession = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(SESSION_KEY);
+    console.log("User session cleared");
+  } catch (error) {
+    console.error("Error clearing user session:", error);
+    throw error;
+  }
+};
+
+/**
+ * Check if user has a valid active session
+ */
+export const hasValidSession = async (): Promise<boolean> => {
+  try {
+    const session = await getCurrentSession();
+    return session !== null;
+  } catch (error) {
+    console.error("Error checking valid session:", error);
+    return false;
   }
 };

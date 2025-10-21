@@ -1,29 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
-import { Budget } from '../../utils/localdb';
+import React, { useEffect, useState } from 'react';
 import {
-  listBudgets,
-  deleteBudget,
-} from '../../utils/CRUD/budgetcrud';
+  Alert,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet
+} from 'react-native';
 import {
+  BudgetList,
   BudgetTabs,
   CreateBudgetButton,
-  BudgetList,
   type BudgetTab,
 } from '../../assets/componets/budget';
+import {
+  deleteBudget,
+  listBudgets,
+} from '../../utils/CRUD/budgetcrud';
+import { Budget } from '../../utils/localdb';
 
 export default function BudgetPage() {
   const [selectedTab, setSelectedTab] = useState<BudgetTab>('upcoming');
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadBudgets();
   }, []);
 
-  const loadBudgets = async () => {
+  const loadBudgets = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const allBudgets = await listBudgets();
       setBudgets(allBudgets);
     } catch (error) {
@@ -31,6 +43,7 @@ export default function BudgetPage() {
       Alert.alert('Error', 'Failed to load budgets');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -82,31 +95,92 @@ export default function BudgetPage() {
   };
 
   const filteredBudgets = filterBudgetsByTab(budgets);
+  
+  const getTotalBudgetAmount = () => {
+    return filteredBudgets.reduce((total, budget) => total + budget.totalBudget, 0);
+  };
+  
+  const getTotalRemainingAmount = () => {
+    return filteredBudgets.reduce((total, budget) => total + budget.remainingBudget, 0);
+  };
+  
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const onRefresh = () => {
+    loadBudgets(true);
+  };
 
   return (
-    <View style={styles.container}>
-      <BudgetTabs
-        selectedTab={selectedTab}
-        onTabChange={setSelectedTab}
-      />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
+      
+      
 
-      {selectedTab === 'upcoming' && (
-        <CreateBudgetButton onPress={handleCreateBudget} />
-      )}
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        <BudgetTabs
+          selectedTab={selectedTab}
+          onTabChange={setSelectedTab}
+        />
 
-      <BudgetList
-        budgets={filteredBudgets}
-        onEditBudget={handleEditBudget}
-        onDeleteBudget={handleDeleteBudget}
-        loading={loading}
-      />
-    </View>
+        {selectedTab === 'upcoming' && (
+          <CreateBudgetButton onPress={handleCreateBudget} />
+        )}
+
+        <BudgetList
+          budgets={filteredBudgets}
+          onEditBudget={handleEditBudget}
+          onDeleteBudget={handleDeleteBudget}
+          loading={loading}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
+  },
+  summaryCards: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    backdropFilter: 'blur(10px)',
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  summaryAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  content: {
+    flex: 1,
+    marginTop: -20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#f8f9fa',
+    overflow: 'hidden',
   },
 });

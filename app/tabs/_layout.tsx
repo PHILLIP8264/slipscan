@@ -62,7 +62,7 @@ export default function Layout() {
       <Tabs.Screen
         name="budget"
         options={{
-          title: "Budget",
+          title: "Budget Manager",
           headerStyle: { backgroundColor: "#007AFF" },
           headerTitleStyle: { color: "#fff", fontWeight: "bold" },
           headerTintColor: "#fff",

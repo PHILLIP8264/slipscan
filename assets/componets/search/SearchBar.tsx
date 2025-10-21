@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface SearchBarProps {
   searchQuery: string;
@@ -42,24 +42,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    margin: 16,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    elevation: 2,
+    marginHorizontal: 20,
+    marginVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 12,
+    color: '#666',
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 16,
     fontSize: 16,
+    color: '#333',
   },
   clearButton: {
-    padding: 4,
+    padding: 6,
+    marginLeft: 8,
   },
 });

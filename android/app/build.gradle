@@ -179,10 +179,4 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-
-    // ML Kit Document Scanner
-    implementation 'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1'
-    
-    // ML Kit Text Recognition
-    implementation 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
 }

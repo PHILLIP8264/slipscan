@@ -1,214 +1,449 @@
 import Homepie from "@/assets/componets/ui/homeui/Homepiechart";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
+  Alert,
   Platform,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import DocumentScanner from '../../utils/DocumentScanner';
 
 export default function Index() {
   const router = useRouter();
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleScanReceipt = async () => {
+    try {
+      setIsScanning(true);
+      
+      // Show scanning started alert
+      Alert.alert(
+        "📱 Starting Scanner",
+        Platform.OS === "android" 
+          ? "Launching ML Kit document scanner..." 
+          : "Opening camera scanner...",
+        [{ text: "OK" }]
+      );
+
+      // Start the document scanner
+      const result = await DocumentScanner.startScanner({
+        pageLimit: 3,
+        allowGalleryImport: true,
+        scannerMode: "full",
+        pdf: true,
+        useAI: true,
+      });
+
+      // Handle successful scan
+      if (result.pages && result.pages.length > 0) {
+        Alert.alert(
+          "✅ Scan Complete!",
+          `Successfully scanned ${result.pages.length} page(s)!\n\n${
+            result.receiptData ? "Receipt data extracted automatically." : ""
+          }`,
+          [
+            {
+              text: "View Details",
+              onPress: () => {
+                // Navigate to receipt editing or details page
+                router.push("/EditReceipt");
+              },
+            },
+            { text: "Scan Another", style: "default" },
+          ]
+        );
+      } else {
+        Alert.alert("ℹ️ No Pages Scanned", "Please try scanning again.");
+      }
+    } catch (error) {
+      console.error("Scanning error:", error);
+      Alert.alert(
+        "❌ Scanning Error",
+        "Failed to scan document. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.welcomeSection}>
-        <Text style={styles.welcomeTitle}>Welcome to SlipScan!</Text>
-        <Text style={styles.welcomeSubtitle}>
-          Scan receipts with{" "}
-          {Platform.OS === "android" ? "ML Kit's advanced" : "camera-based"}{" "}
-          document scanner
-        </Text>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.primaryAction]}
-          onPress={() => router.push("/DocumentScannerDemo")}
-        >
-          <Ionicons name="scan" size={32} color="white" />
-          <Text style={styles.primaryActionText}>ML Kit Scanner</Text>
-          <Text style={styles.actionSubtext}>
-            {Platform.OS === "android"
-              ? "Advanced document scanner"
-              : "Camera fallback"}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.secondaryActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.secondaryAction]}
-            onPress={() => router.push("/ScanReceipt")}
-          >
-            <Ionicons name="camera-outline" size={24} color="#007AFF" />
-            <Text style={styles.secondaryActionText}>Basic Scan</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.secondaryAction]}
-            onPress={() => router.push("/profile")}
-          >
-            <Ionicons name="settings-outline" size={24} color="#007AFF" />
-            <Text style={styles.secondaryActionText}>Settings</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.secondaryAction]}
-            onPress={() => router.push("/tabs/budget")}
-          >
-            <Ionicons name="wallet-outline" size={24} color="#007AFF" />
-            <Text style={styles.secondaryActionText}>Budget</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Spending Overview */}
-      <View style={styles.chartSection}>
-        <Text style={styles.chartTitle}>Spending Overview</Text>
-        <Homepie />
-      </View>
-
-      {/* Features Info */}
-      {Platform.OS === "android" && (
-        <View style={styles.featuresSection}>
-          <Text style={styles.featuresTitle}>ML Kit Features</Text>
-          <View style={styles.featuresList}>
-            <View style={styles.featureItem}>
-              <Ionicons name="scan" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Automatic edge detection</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="crop" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Perspective correction</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="sparkles" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Image enhancement</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="documents" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Multi-page scanning</Text>
-            </View>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#4285F4" />
+      
+      <LinearGradient
+        colors={['#4285F4', '#34A853']}
+        style={styles.headerGradient}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.headerTitleSection}>
+            <Ionicons name="receipt" size={24} color="white" />
+            <Text style={styles.headerTitle}>SlipScan</Text>
           </View>
         </View>
-      )}
-    </ScrollView>
+      </LinearGradient>
+
+      <ScrollView 
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        alwaysBounceVertical={false}
+        scrollEventThrottle={16}
+        decelerationRate="normal"
+      >
+
+        {/* Monthly Budget Overview with Donut Chart */}
+        <View style={styles.budgetOverviewSection}>
+          <View style={styles.budgetHeader}>
+            <Text style={styles.budgetTitle}>October 2025 Budget</Text>
+            <View style={styles.budgetSummary}>
+              <View style={styles.budgetSummaryItem}>
+                <Text style={styles.budgetAmount}>$2,500</Text>
+                <Text style={styles.budgetLabel}>Total Budget</Text>
+              </View>
+              <View style={styles.budgetSummaryItem}>
+                <Text style={styles.spentAmount}>$1,250</Text>
+                <Text style={styles.budgetLabel}>Spent</Text>
+              </View>
+              <View style={styles.budgetSummaryItem}>
+                <Text style={styles.remainingAmount}>$1,250</Text>
+                <Text style={styles.budgetLabel}>Remaining</Text>
+              </View>
+            </View>
+          </View>
+          
+          {/* Donut Chart */}
+          <View style={styles.chartContainer}>
+            <Homepie />
+          </View>
+        </View>
+
+        {/* Main Scan Action */}
+        <View style={styles.scanActionContainer}>
+          <TouchableOpacity
+            style={[
+              styles.mainScanButton,
+              isScanning && styles.scanningButton
+            ]}
+            onPress={handleScanReceipt}
+            disabled={isScanning}
+          >
+            <Ionicons 
+              name={isScanning ? "hourglass" : "scan"} 
+              size={40} 
+              color="white" 
+            />
+            <Text style={styles.mainScanButtonText}>
+              {isScanning ? "Scanning..." : "Scan Receipt"}
+            </Text>
+            <Text style={styles.mainScanSubtext}>
+              {isScanning 
+                ? "Please wait while scanning..."
+                : Platform.OS === "android" 
+                  ? "AI-powered document scanner" 
+                  : "Advanced camera scanner"
+              }
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Budget Breakdown */}
+        <View style={styles.budgetBreakdownSection}>
+          <Text style={styles.budgetBreakdownTitle}>Budget Breakdown</Text>
+          <View style={styles.categoryList}>
+            <View style={styles.categoryItem}>
+              <View style={styles.categoryInfo}>
+                <View style={styles.categoryIconContainer}>
+                  <Ionicons name="restaurant" size={20} color="#FF6B6B" />
+                </View>
+                <Text style={styles.categoryName}>Food & Dining</Text>
+              </View>
+              <View style={styles.categoryAmounts}>
+                <Text style={styles.categorySpent}>$520</Text>
+                <Text style={styles.categoryBudget}>/ $800</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '65%', backgroundColor: '#FF6B6B' }]} />
+              </View>
+            </View>
+
+            <View style={styles.categoryItem}>
+              <View style={styles.categoryInfo}>
+                <View style={styles.categoryIconContainer}>
+                  <Ionicons name="car" size={20} color="#4ECDC4" />
+                </View>
+                <Text style={styles.categoryName}>Transportation</Text>
+              </View>
+              <View style={styles.categoryAmounts}>
+                <Text style={styles.categorySpent}>$320</Text>
+                <Text style={styles.categoryBudget}>/ $500</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '64%', backgroundColor: '#4ECDC4' }]} />
+              </View>
+            </View>
+
+            <View style={styles.categoryItem}>
+              <View style={styles.categoryInfo}>
+                <View style={styles.categoryIconContainer}>
+                  <Ionicons name="storefront" size={20} color="#45B7D1" />
+                </View>
+                <Text style={styles.categoryName}>Shopping</Text>
+              </View>
+              <View style={styles.categoryAmounts}>
+                <Text style={styles.categorySpent}>$280</Text>
+                <Text style={styles.categoryBudget}>/ $600</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '47%', backgroundColor: '#45B7D1' }]} />
+              </View>
+            </View>
+
+            <View style={styles.categoryItem}>
+              <View style={styles.categoryInfo}>
+                <View style={styles.categoryIconContainer}>
+                  <Ionicons name="home" size={20} color="#96CEB4" />
+                </View>
+                <Text style={styles.categoryName}>Utilities</Text>
+              </View>
+              <View style={styles.categoryAmounts}>
+                <Text style={styles.categorySpent}>$130</Text>
+                <Text style={styles.categoryBudget}>/ $200</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '65%', backgroundColor: '#96CEB4' }]} />
+              </View>
+            </View>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.viewAllBudgetsButton}
+            onPress={() => router.push("/tabs/budget")}
+          >
+            <Text style={styles.viewAllBudgetsText}>View All Budgets</Text>
+            <Ionicons name="chevron-forward" size={16} color="#4285F4" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f8f9fa",
   },
-  welcomeSection: {
+  headerGradient: {
+    paddingTop: 0,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingBottom: 24,
+  },
+  headerTitleSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    marginLeft: 12,
+  },
+  content: {
+    flex: 1,
+    marginTop: -20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#f8f9fa',
+    overflow: 'hidden',
+  },
+  // Budget Overview Section
+  budgetOverviewSection: {
     backgroundColor: "#fff",
+    margin: 20,
+    marginTop: 30,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  budgetHeader: {
+    marginBottom: 24,
+  },
+  budgetTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  budgetSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  budgetSummaryItem: {
+    alignItems: 'center',
+  },
+  budgetAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4285F4',
+    marginBottom: 4,
+  },
+  spentAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF6B6B',
+    marginBottom: 4,
+  },
+  remainingAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#34A853',
+    marginBottom: 4,
+  },
+  budgetLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chartContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Scan Action Section
+  scanActionContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  mainScanButton: {
+    backgroundColor: "#4285F4",
+    borderRadius: 20,
     padding: 24,
     alignItems: "center",
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
-  },
-  welcomeSubtitle: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 8,
-    lineHeight: 22,
-  },
-  actionsContainer: {
-    padding: 16,
-  },
-  actionButton: {
-    borderRadius: 12,
-    padding: 20,
-    alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  primaryAction: {
-    backgroundColor: "#007AFF",
-    marginBottom: 16,
+  scanningButton: {
+    backgroundColor: "#6c757d",
+    opacity: 0.7,
   },
-  primaryActionText: {
+  mainScanButtonText: {
     color: "white",
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     marginTop: 12,
   },
-  actionSubtext: {
+  mainScanSubtext: {
     color: "rgba(255, 255, 255, 0.8)",
     fontSize: 14,
     marginTop: 4,
+    textAlign: 'center',
   },
-  secondaryActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  secondaryAction: {
+  // Budget Breakdown Section
+  budgetBreakdownSection: {
     backgroundColor: "#fff",
-    minWidth: "30%",
+    margin: 20,
+    marginTop: 0,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  budgetBreakdownTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+    marginBottom: 20,
+  },
+  categoryList: {
+    gap: 16,
+  },
+  categoryItem: {
+    marginBottom: 4,
+  },
+  categoryInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  categoryName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
     flex: 1,
   },
-  secondaryActionText: {
-    color: "#007AFF",
+  categoryAmounts: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  categorySpent: {
     fontSize: 16,
-    fontWeight: "600",
-    marginTop: 8,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
-  chartSection: {
-    backgroundColor: "#fff",
-    margin: 16,
+  categoryBudget: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginLeft: 2,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#f0f2f5',
+    borderRadius: 3,
+    marginTop: 4,
+  },
+  progressFill: {
+    height: 6,
+    borderRadius: 3,
+  },
+  viewAllBudgetsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingVertical: 12,
     borderRadius: 12,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#f8f9fa',
   },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  featuresSection: {
-    backgroundColor: "#fff",
-    margin: 16,
-    marginTop: 0,
-    borderRadius: 12,
-    padding: 20,
-  },
-  featuresTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 16,
-  },
-  featuresList: {
-    gap: 12,
-  },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  featureText: {
+  viewAllBudgetsText: {
     fontSize: 16,
-    color: "#666",
-    marginLeft: 12,
+    fontWeight: '600',
+    color: '#4285F4',
+    marginRight: 4,
   },
 });

@@ -1,32 +1,79 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 type LandingState = "first-time" | "returning";
+
+interface LastLoggedInUser {
+  email: string;
+  name: string;
+  userId: string;
+  loginMethod: "email" | "phone";
+  loginDate: string;
+}
 
 interface LandingViewProps {
   state: LandingState;
   onLogin: () => void;
+  onBiometricLogin?: () => void;
   onSignup: () => void;
+  lastUser?: LastLoggedInUser | null;
+  canUseBiometrics?: boolean;
+  biometricsType?: string;
 }
 
 export default function LandingView({
   state,
   onLogin,
+  onBiometricLogin,
   onSignup,
+  lastUser,
+  canUseBiometrics = false,
+  biometricsType = "Biometrics",
 }: LandingViewProps) {
+  const handleLoginPress = () => {
+    if (state === "returning" && lastUser && canUseBiometrics && onBiometricLogin) {
+      // Use biometric login for returning users with biometrics enabled
+      onBiometricLogin();
+    } else {
+      // Use regular login form
+      onLogin();
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Welcome to SlipScan</Text>
-        <Text style={styles.subtitle}>Secure expense tracking</Text>
+        <Text style={styles.title}>
+          {state === "returning" && lastUser ? `Welcome back, ${lastUser.name}!` : "Welcome to SlipScan"}
+        </Text>
+        <Text style={styles.subtitle}>
+          {state === "returning" && lastUser 
+            ? `Continue as ${lastUser.email}` 
+            : "Secure expense tracking"}
+        </Text>
       </View>
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, styles.primaryButton]}
-          onPress={onLogin}
+          onPress={handleLoginPress}
         >
-          <Text style={styles.primaryButtonText}>Login</Text>
+          {state === "returning" && lastUser && canUseBiometrics ? (
+            <View style={styles.buttonContent}>
+              <Ionicons 
+                name="finger-print" 
+                size={24} 
+                color="white" 
+                style={styles.buttonIcon} 
+              />
+              <Text style={styles.primaryButtonText}>
+                Login with {biometricsType}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.primaryButtonText}>Login</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -128,5 +175,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     textAlign: "center",
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
 });
