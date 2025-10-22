@@ -23,7 +23,14 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authManager] = useState(() => AuthManager.getInstance());
-  const [authState, setAuthState] = useState<AuthState>(authManager.getAuthState());
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    // Initialize with empty state, will be updated after async initialization
+    return {
+      lastUserEmail: undefined,
+      lastUserName: undefined,
+      lastUserHadBiometrics: false,
+    };
+  });
   const [isLocked, setIsLocked] = useState(false);
   const appState = useRef(AppState.currentState);
   const backgroundTime = useRef<number | null>(null);
@@ -34,7 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
     if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
       // App is coming to foreground
-      if (authState.isAuthenticated && backgroundTime.current) {
+      if (authState.lastUserEmail && backgroundTime.current) {
         const timeInBackground = Date.now() - backgroundTime.current;
         
         if (timeInBackground > AUTO_LOGOUT_DELAY) {
@@ -52,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       backgroundTime.current = null;
     } else if (nextAppState.match(/inactive|background/)) {
       // App is going to background
-      if (authState.isAuthenticated) {
+      if (authState.lastUserEmail) {
         backgroundTime.current = Date.now();
       }
     }
@@ -77,6 +84,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
+    // Ensure AuthManager is initialized before subscribing
+    const initializeAndSubscribe = async () => {
+      await authManager.ensureInitialized();
+      setAuthState(authManager.getAuthState());
+    };
+    
+    initializeAndSubscribe();
+
     // Subscribe to auth state changes
     const unsubscribe = authManager.addAuthStateListener(setAuthState);
     
@@ -87,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       unsubscribe();
       appStateSubscription?.remove();
     };
-  }, [authManager, authState.isAuthenticated]);
+  }, [authManager]);
 
   const contextValue: AuthContextType = {
     authState,

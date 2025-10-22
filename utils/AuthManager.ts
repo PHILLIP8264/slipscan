@@ -50,8 +50,11 @@ export class AuthManager {
     lastUserHadBiometrics: false,
   };
 
+  private initializationPromise: Promise<void> | null = null;
+
   private constructor() {
-    this.initialize();
+    // Don't await here, but store the promise
+    this.initializationPromise = this.initialize();
   }
 
   public static getInstance(): AuthManager {
@@ -59,6 +62,14 @@ export class AuthManager {
       AuthManager.instance = new AuthManager();
     }
     return AuthManager.instance;
+  }
+
+  // Method to ensure initialization is complete before accessing state
+  public async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      this.initializationPromise = null;
+    }
   }
 
   private async initialize(): Promise<void> {
@@ -109,12 +120,16 @@ export class AuthManager {
       // Get current biometric preference
       const userHasBiometrics = await isBiometricsEnabled();
       
+      console.log('💾 Storing login data:', { email, name: user.name, biometrics: userHasBiometrics });
+      
       // Store user email, name, and biometrics
       await Promise.all([
         AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_EMAIL, email),
         AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_NAME, user.name),
         AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_BIOMETRICS, userHasBiometrics.toString())
       ]);
+      
+      console.log('✅ Login data stored successfully');
       
       this.currentAuthState = {
         lastUserEmail: email,
