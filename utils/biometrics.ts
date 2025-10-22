@@ -92,10 +92,19 @@ export const authenticateWithBiometrics = async (
   try {
     const biometricsInfo = await isBiometricsAvailable();
 
-    if (!biometricsInfo.available) {
+    console.log('Biometrics Info:', biometricsInfo); // Debug log
+
+    if (!biometricsInfo.hasHardware) {
       return {
         success: false,
-        error: "Biometric authentication is not available",
+        error: "This device doesn't support biometric authentication",
+      };
+    }
+
+    if (!biometricsInfo.isEnrolled) {
+      return {
+        success: false,
+        error: "No biometric credentials are enrolled. Please set up biometric authentication in your device settings first.",
       };
     }
 
@@ -103,7 +112,7 @@ export const authenticateWithBiometrics = async (
     if (!userPreference) {
       return {
         success: false,
-        error: "Biometric authentication is disabled in settings",
+        error: "Biometric authentication is disabled in app settings",
       };
     }
 
@@ -112,12 +121,39 @@ export const authenticateWithBiometrics = async (
         promptMessage || `Authenticate with ${biometricsInfo.type}`,
       fallbackLabel: "Use passcode",
       cancelLabel: "Cancel",
+      disableDeviceFallback: false,
     });
 
-    return {
-      success: result.success,
-      error: result.success ? undefined : "Authentication failed",
-    };
+    console.log('Auth result:', result); // Debug log
+
+    if (result.success) {
+      return {
+        success: true,
+      };
+    } else {
+      let errorMessage = "Authentication failed";
+      
+      // Handle different error types based on the result.error string
+      const errorString = result.error;
+      console.log('Biometric error:', errorString); // Debug log
+      
+      if (errorString && typeof errorString === 'string') {
+        if (errorString.includes('UserCancel') || errorString.includes('cancelled')) {
+          errorMessage = "Authentication was cancelled";
+        } else if (errorString.includes('NotEnrolled') || errorString.includes('enrolled')) {
+          errorMessage = "No biometric credentials are enrolled. Please set up biometric authentication in your device settings.";
+        } else if (errorString.includes('PasscodeNotSet') || errorString.includes('passcode')) {
+          errorMessage = "Device passcode is not set. Please set up a passcode first.";
+        } else if (errorString.includes('BiometricUnavailable') || errorString.includes('unavailable')) {
+          errorMessage = "Biometric authentication is temporarily unavailable";
+        }
+      }
+      
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
   } catch (error) {
     console.error("Biometric authentication error:", error);
     return {

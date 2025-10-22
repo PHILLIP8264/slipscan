@@ -2,14 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import DocumentScanner from "../utils/DocumentScanner";
 
@@ -25,33 +25,39 @@ export default function ScanReceipt() {
     try {
       console.log("Calling DocumentScanner.startScanner...");
 
-      // Try with basic OCR first to avoid AI crashes during development
+      // Use Google Vision for best accuracy, with OCR fallback
       const result = await DocumentScanner.startScanner({
         pageLimit: 6,
         allowGalleryImport: true,
         jpeg: true,
         pdf: true,
         scannerMode: "full",
-        useAI: false, // Disable AI processing temporarily
+        useGoogleVision: true, // Enable Google Vision for best accuracy
       });
 
       console.log("ML Kit scan result:", result);
       console.log("Scan successful, pages:", result.pages?.length || 0);
       setScanResult(result);
 
-      // Show different message based on AI/OCR success
+      // Show different message based on processing method
       let processingMessage = "\nProcessing available";
       if (result.receiptData) {
-        const isAI = "aiMetadata" in result.receiptData;
-        const processingType = isAI ? "AI" : "OCR";
+        let processingType = "OCR";
+        
+        // Determine processing method
+        if ("processingMethod" in result.receiptData) {
+          processingType = result.receiptData.processingMethod === "google-vision" ? "Google Vision" : "OCR";
+        }
+        
         processingMessage = `\n${processingType} Processing:\nMerchant: ${
           result.receiptData.merchant
         }\nTotal: $${result.receiptData.total}\nConfidence: ${Math.round(
           result.receiptData.confidence * 100
         )}%`;
 
-        if (isAI && "aiMetadata" in result.receiptData) {
-          processingMessage += `\nMethod: ${result.receiptData.aiMetadata.processingMethod}`;
+        // Add method details if available
+        if ("processingMethod" in result.receiptData) {
+          processingMessage += `\nMethod: ${result.receiptData.processingMethod}`;
         }
       }
 
@@ -93,12 +99,12 @@ export default function ScanReceipt() {
     try {
       let receiptData = result.receiptData;
 
-      // If OCR data not available, try to extract it now with basic OCR
+      // If receipt data not available, try to extract it now
       if (!receiptData && result.pages.length > 0) {
-        Alert.alert("Processing", "Extracting text from receipt...");
+        Alert.alert("Processing", "Analyzing receipt with Google Vision...");
         receiptData = await DocumentScanner.parseReceipt(
           result.pages[0].imageUri,
-          false // Use basic OCR processing for now
+          true   // Use Google Vision for best results
         );
       }
 
@@ -183,7 +189,7 @@ export default function ScanReceipt() {
         </Text>
         <Text style={styles.instructionsText}>
           {Platform.OS === "android"
-            ? "Use Google's advanced document scanner with AI-powered receipt processing for superior accuracy and understanding."
+            ? "Use Google's advanced document scanner with intelligent receipt processing for superior accuracy and understanding."
             : "Take a photo of your receipt using the camera."}
         </Text>
 
@@ -191,7 +197,7 @@ export default function ScanReceipt() {
           <View style={styles.featuresContainer}>
             <Text style={styles.featuresTitle}>Features:</Text>
             <Text style={styles.featureItem}>
-              • AI-powered document understanding
+              • Intelligent document understanding
             </Text>
             <Text style={styles.featureItem}>
               • Intelligent text recognition
@@ -258,12 +264,14 @@ export default function ScanReceipt() {
             ))}
           </ScrollView>
 
-          {/* AI/OCR Data Display */}
+          {/* Processing Data Display */}
           {scanResult.receiptData && (
             <View style={styles.ocrContainer}>
               <Text style={styles.ocrTitle}>
-                {"aiMetadata" in scanResult.receiptData
-                  ? "AI-Processed"
+                {"processingMethod" in scanResult.receiptData 
+                  ? scanResult.receiptData.processingMethod === "google-vision"
+                    ? "Google Vision"
+                    : "Processed"
                   : "OCR"}{" "}
                 Receipt Data
               </Text>
@@ -292,23 +300,29 @@ export default function ScanReceipt() {
                 </Text>
               </View>
 
-              {/* AI Metadata Display */}
-              {"aiMetadata" in scanResult.receiptData && (
+              {/* Processing Method Display */}
+              {"processingMethod" in scanResult.receiptData && (
                 <>
                   <View style={styles.ocrRow}>
-                    <Text style={styles.ocrLabel}>AI Method:</Text>
+                    <Text style={styles.ocrLabel}>Processing Method:</Text>
                     <Text style={styles.ocrValue}>
-                      {scanResult.receiptData.aiMetadata.processingMethod}
+                      {scanResult.receiptData.processingMethod === "google-vision" 
+                        ? "Google Vision API" 
+                        : scanResult.receiptData.processingMethod}
                     </Text>
                   </View>
-                  <View style={styles.ocrRow}>
-                    <Text style={styles.ocrLabel}>Document Layout:</Text>
-                    <Text style={styles.ocrValue}>
-                      {scanResult.receiptData.aiMetadata.documentLayout}
-                    </Text>
-                  </View>
+                  {"category" in scanResult.receiptData && (
+                    <View style={styles.ocrRow}>
+                      <Text style={styles.ocrLabel}>Auto Category:</Text>
+                      <Text style={styles.ocrValue}>
+                        {scanResult.receiptData.category}
+                      </Text>
+                    </View>
+                  )}
                 </>
               )}
+              
+              {/* Additional metadata can be displayed here */}
               {scanResult.receiptData.items.length > 0 && (
                 <View>
                   <Text style={styles.ocrLabel}>

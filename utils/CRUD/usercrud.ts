@@ -127,7 +127,12 @@ export async function addBudgetToUser(
   budgetData: { month: string; totalBudget: number; remainingBudget: number }
 ) {
   try {
-    return await RelationshipHelpers.addBudgetToUser(userId, budgetData);
+    // Add empty categoryBudgets array to match Budget interface
+    const fullBudgetData = {
+      ...budgetData,
+      categoryBudgets: []
+    };
+    return await RelationshipHelpers.addBudgetToUser(userId, fullBudgetData);
   } catch (error) {
     console.error("Error adding budget to user:", error);
     throw error;

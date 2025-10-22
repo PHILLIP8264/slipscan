@@ -2,17 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { getBudgetByMonth, updateBudget } from "../utils/CRUD/budgetcrud";
 import { ReceiptData } from "../utils/OCRModule";
 import ReceiptManager, { ReceiptCategory } from "../utils/ReceiptManager";
 
@@ -135,6 +136,60 @@ export default function EditReceipt() {
     }, 0);
   };
 
+  const deductFromBudget = async (amount: number, categoryName: string) => {
+    try {
+      // Get current month budget
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+      const budget = await getBudgetByMonth(currentMonth);
+      
+      if (!budget) {
+        console.log("No budget found for current month, skipping budget deduction");
+        return;
+      }
+
+      // Find the category budget to deduct from
+      const categoryBudget = budget.categoryBudgets.find(cb => cb.categoryName === categoryName);
+      
+      if (!categoryBudget) {
+        console.log(`No budget found for category: ${categoryName}, skipping deduction`);
+        return;
+      }
+
+      // Calculate new spent amount and remaining amount
+      const newSpent = categoryBudget.spent + amount;
+      const newRemaining = categoryBudget.budgetAmount - newSpent;
+
+      // Update the category budget
+      const updatedCategoryBudgets = budget.categoryBudgets.map(cb => 
+        cb.categoryName === categoryName 
+          ? { ...cb, spent: newSpent, remainingAmount: newRemaining }
+          : cb
+      );
+
+      // Update the budget in database
+      await updateBudget(budget._id, { categoryBudgets: updatedCategoryBudgets });
+
+      // Show budget impact notification
+      if (newRemaining <= 0) {
+        Alert.alert(
+          "⚠️ Budget Exceeded!",
+          `You've exceeded your ${categoryName} budget by $${Math.abs(newRemaining).toFixed(2)}!`,
+          [{ text: "OK" }]
+        );
+      } else if (newRemaining <= categoryBudget.budgetAmount * 0.1) {
+        Alert.alert(
+          "🚨 Budget Warning",
+          `Only $${newRemaining.toFixed(2)} remaining in your ${categoryName} budget!`,
+          [{ text: "OK" }]
+        );
+      }
+
+    } catch (error) {
+      console.error("Error deducting from budget:", error);
+      // Don't fail the receipt save if budget update fails
+    }
+  };
+
   const saveReceipt = async () => {
     if (!receiptData) return;
 
@@ -171,9 +226,18 @@ export default function EditReceipt() {
         receiptData.notes
       );
 
+      // Automatically deduct from budget if category is selected
+      if (receiptData.category && receiptData.category !== "Other") {
+        await deductFromBudget(parseFloat(receiptData.total), receiptData.category);
+      }
+
       Alert.alert(
         "Receipt Saved! ✅",
-        `${savedReceipt.merchant} - $${savedReceipt.total} has been saved to your receipts.`,
+        `${savedReceipt.merchant} - $${savedReceipt.total} has been saved to your receipts.${
+          receiptData.category && receiptData.category !== "Other" 
+            ? `\n\n💰 Automatically deducted from your ${receiptData.category} budget.`
+            : ""
+        }`,
         [{ text: "OK", onPress: () => router.back() }]
       );
     } catch (error) {

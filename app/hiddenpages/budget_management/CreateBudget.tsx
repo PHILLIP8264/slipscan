@@ -1,0 +1,489 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import {
+    AddCategoryModal,
+    CategoryBudgetItem,
+    CategoryDropdown
+} from '../../../assets/componets/budget';
+import { createBudget } from '../../../utils/CRUD/budgetcrud';
+import { listCategories } from '../../../utils/CRUD/categorycrud';
+import { Category, CategoryBudget } from '../../../utils/localdb';
+
+export function CreateBudget() {
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudget[]>([]);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const categories = await listCategories();
+      setAvailableCategories(categories);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      Alert.alert('Error', 'Failed to load categories');
+    }
+  };
+
+  const formatMonthForStorage = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  const formatMonthForDisplay = (date: Date) => {
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+  };
+
+  const handleMonthChange = (year: number, month: number) => {
+    const newDate = new Date(year, month, 1);
+    setSelectedMonth(newDate);
+    setShowMonthPicker(false);
+  };
+
+  const getMonthOptions = () => {
+    const currentDate = new Date();
+    const options = [];
+    
+    // Generate 24 months: 12 months back and 12 months forward
+    for (let i = -12; i <= 12; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+      options.push({
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        display: date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+        value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      });
+    }
+    
+    return options;
+  };
+
+  const handleCategoryToggle = (categoryId: string) => {
+    if (selectedCategoryIds.includes(categoryId)) {
+      // Remove category
+      setSelectedCategoryIds(prev => prev.filter(id => id !== categoryId));
+      setCategoryBudgets(prev => prev.filter(cb => cb.categoryId !== categoryId));
+    } else {
+      // Add category
+      setSelectedCategoryIds(prev => [...prev, categoryId]);
+      const category = availableCategories.find(cat => cat._id === categoryId);
+      if (category) {
+        const budgetAmount = category.budgetAmount || 0;
+        const newCategoryBudget: CategoryBudget = {
+          categoryId: categoryId,
+          categoryName: category.name,
+          budgetAmount: budgetAmount,
+          spent: 0,
+          remainingAmount: budgetAmount
+        };
+        setCategoryBudgets(prev => [...prev, newCategoryBudget]);
+      }
+    }
+  };
+
+  const handleCategoryAmountChange = (categoryId: string, amount: number) => {
+    setCategoryBudgets(prev => 
+      prev.map(cb => 
+        cb.categoryId === categoryId 
+          ? { ...cb, budgetAmount: amount, remainingAmount: amount - cb.spent }
+          : cb
+      )
+    );
+  };
+
+  const handleRemoveCategory = (categoryId: string) => {
+    setSelectedCategoryIds(prev => prev.filter(id => id !== categoryId));
+    setCategoryBudgets(prev => prev.filter(cb => cb.categoryId !== categoryId));
+  };
+
+  const handleAddCategory = (newCategory: Category) => {
+    setAvailableCategories(prev => [...prev, newCategory]);
+  };
+
+  const getTotalBudget = () => {
+    return categoryBudgets.reduce((total, cb) => total + cb.budgetAmount, 0);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
+  const handleSaveBudget = async () => {
+    if (categoryBudgets.length === 0) {
+      Alert.alert('Error', 'Please add at least one category to your budget');
+      return;
+    }
+
+    const totalBudget = getTotalBudget();
+    if (totalBudget <= 0) {
+      Alert.alert('Error', 'Total budget must be greater than $0');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      await createBudget({
+        month: formatMonthForStorage(selectedMonth),
+        categoryBudgets: categoryBudgets
+      });
+
+      Alert.alert(
+        'Success', 
+        'Budget created successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back()
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error creating budget:', error);
+      Alert.alert('Error', 'Failed to create budget');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedCategories = availableCategories.filter(cat => 
+    selectedCategoryIds.includes(cat._id)
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
+      
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Create Budget</Text>
+        <TouchableOpacity 
+          style={[styles.saveButton, loading && styles.disabledButton]}
+          onPress={handleSaveBudget}
+          disabled={loading}
+        >
+          <Text style={styles.saveButtonText}>
+            {loading ? 'Saving...' : 'Save'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <KeyboardAvoidingView 
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Month Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Budget Month</Text>
+            <TouchableOpacity 
+              style={styles.monthSelector}
+              onPress={() => setShowMonthPicker(true)}
+            >
+              <Text style={styles.monthText}>
+                {formatMonthForDisplay(selectedMonth)}
+              </Text>
+              <Ionicons name="calendar" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Category Selection */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Categories</Text>
+              <TouchableOpacity 
+                style={styles.addCategoryButton}
+                onPress={() => setShowAddCategoryModal(true)}
+              >
+                <Ionicons name="add-circle" size={20} color="#007AFF" />
+                <Text style={styles.addCategoryText}>Add New</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <CategoryDropdown
+              categories={availableCategories}
+              selectedCategories={selectedCategoryIds}
+              onCategoryToggle={handleCategoryToggle}
+              placeholder="Select categories for this budget"
+            />
+          </View>
+
+          {/* Selected Categories Budget Amounts */}
+          {selectedCategories.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Budget Amounts</Text>
+              {selectedCategories.map(category => {
+                const categoryBudget = categoryBudgets.find(cb => cb.categoryId === category._id);
+                return (
+                  <CategoryBudgetItem
+                    key={category._id}
+                    category={category}
+                    categoryBudget={categoryBudget}
+                    onAmountChange={handleCategoryAmountChange}
+                    onRemove={handleRemoveCategory}
+                    editable={true}
+                  />
+                );
+              })}
+            </View>
+          )}
+
+          {/* Total Budget Display */}
+          {categoryBudgets.length > 0 && (
+            <View style={styles.totalSection}>
+              <View style={styles.totalCard}>
+                <Text style={styles.totalLabel}>Total Budget</Text>
+                <Text style={styles.totalAmount}>
+                  {formatCurrency(getTotalBudget())}
+                </Text>
+                <Text style={styles.totalSubtext}>
+                  Across {categoryBudgets.length} {categoryBudgets.length === 1 ? 'category' : 'categories'}
+                </Text>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <AddCategoryModal
+        visible={showAddCategoryModal}
+        onClose={() => setShowAddCategoryModal(false)}
+        onCategoryAdded={handleAddCategory}
+      />
+
+      {/* Month Picker Modal */}
+      {showMonthPicker && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.monthPickerModal}>
+            <View style={styles.monthPickerHeader}>
+              <Text style={styles.monthPickerTitle}>Select Budget Month</Text>
+              <TouchableOpacity onPress={() => setShowMonthPicker(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.monthOptions}>
+              {getMonthOptions().map((option, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.monthOption,
+                    option.value === formatMonthForStorage(selectedMonth) && styles.selectedMonthOption
+                  ]}
+                  onPress={() => handleMonthChange(option.year, option.month)}
+                >
+                  <Text style={[
+                    styles.monthOptionText,
+                    option.value === formatMonthForStorage(selectedMonth) && styles.selectedMonthOptionText
+                  ]}>
+                    {option.display}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  header: {
+    backgroundColor: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: Platform.OS === 'ios' ? 60 : 12,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 16,
+  },
+  saveButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  section: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+  },
+  addCategoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addCategoryText: {
+    color: '#007AFF',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  monthSelector: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  monthText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  totalSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  totalCard: {
+    backgroundColor: '#007AFF',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 8,
+  },
+  totalAmount: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: 'white',
+    marginBottom: 4,
+  },
+  totalSubtext: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  // Month Picker Modal Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthPickerModal: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    margin: 20,
+    maxHeight: 400,
+    width: '80%',
+  },
+  monthPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  monthPickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  monthOptions: {
+    maxHeight: 300,
+  },
+  monthOption: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+  },
+  selectedMonthOption: {
+    backgroundColor: '#f0f8ff',
+  },
+  monthOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectedMonthOptionText: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+});

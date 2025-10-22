@@ -32,6 +32,12 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# Google Cloud credentials (IMPORTANT: Never commit these!)
+google-credentials.json
+**/google-credentials.json
+*.json
 
 # typescript
 *.tsbuildinfo

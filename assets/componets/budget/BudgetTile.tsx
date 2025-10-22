@@ -62,7 +62,33 @@ export const BudgetTile: React.FC<BudgetTileProps> = ({ budget, onEdit, onDelete
         <Text style={styles.remainingText}>
           {formatCurrency(budget.remainingBudget)} remaining
         </Text>
+        {budget.categoryBudgets && budget.categoryBudgets.length > 0 && (
+          <Text style={styles.categoryCountText}>
+            {budget.categoryBudgets.length} {budget.categoryBudgets.length === 1 ? 'category' : 'categories'}
+          </Text>
+        )}
       </View>
+
+      {/* Category Preview */}
+      {budget.categoryBudgets && budget.categoryBudgets.length > 0 && (
+        <View style={styles.categoryPreview}>
+          <View style={styles.categoryDots}>
+            {budget.categoryBudgets.slice(0, 4).map((catBudget, index) => {
+              const usagePercent = catBudget.budgetAmount > 0 
+                ? (catBudget.spent / catBudget.budgetAmount) * 100 
+                : 0;
+              const color = usagePercent > 90 ? '#ff3b30' : usagePercent > 70 ? '#ff9500' : '#34c759';
+              
+              return (
+                <View key={index} style={[styles.categoryDot, { backgroundColor: color }]} />
+              );
+            })}
+            {budget.categoryBudgets.length > 4 && (
+              <Text style={styles.moreCategoriesText}>+{budget.categoryBudgets.length - 4}</Text>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Usage Progress Bar */}
       <View style={styles.progressContainer}>
@@ -147,6 +173,12 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
+  categoryCountText: {
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '500',
+    marginTop: 4,
+  },
   progressContainer: {
     marginBottom: 20,
     backgroundColor: '#f8f9fa',
@@ -214,5 +246,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 8,
     fontSize: 15,
+  },
+  categoryPreview: {
+    marginBottom: 16,
+  },
+  categoryDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  categoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  moreCategoriesText: {
+    fontSize: 11,
+    color: '#999',
+    marginLeft: 4,
   },
 });

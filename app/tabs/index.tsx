@@ -4,15 +4,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import DocumentScanner from '../../utils/DocumentScanner';
 
@@ -39,7 +39,7 @@ export default function Index() {
         allowGalleryImport: true,
         scannerMode: "full",
         pdf: true,
-        useAI: true,
+        useGoogleVision: true,
       });
 
       // Handle successful scan
@@ -148,11 +148,57 @@ export default function Index() {
               {isScanning 
                 ? "Please wait while scanning..."
                 : Platform.OS === "android" 
-                  ? "AI-powered document scanner" 
+                  ? "Advanced document scanner" 
                   : "Advanced camera scanner"
               }
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActionsContainer}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => router.push('/ScanReceipt')}
+            >
+              <View style={styles.quickActionIconContainer}>
+                <Ionicons name="camera" size={24} color="#4285F4" />
+              </View>
+              <Text style={styles.quickActionText}>Scan Receipt</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => router.push('/tabs/budget')}
+            >
+              <View style={styles.quickActionIconContainer}>
+                <Ionicons name="wallet" size={24} color="#34A853" />
+              </View>
+              <Text style={styles.quickActionText}>Manage Budget</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => router.push('/tabs/search')}
+            >
+              <View style={styles.quickActionIconContainer}>
+                <Ionicons name="search" size={24} color="#FBBC04" />
+              </View>
+              <Text style={styles.quickActionText}>Search Receipts</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => router.push('/SettingsPage')}
+            >
+              <View style={styles.quickActionIconContainer}>
+                <Ionicons name="settings" size={24} color="#EA4335" />
+              </View>
+              <Text style={styles.quickActionText}>Settings</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Budget Breakdown */}
@@ -445,5 +491,59 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4285F4',
     marginRight: 4,
+  },
+  // Quick Actions Section
+  quickActionsContainer: {
+    backgroundColor: '#fff',
+    margin: 20,
+    marginTop: 0,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 20,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickActionButton: {
+    width: '48%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  quickActionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    textAlign: 'center',
   },
 });

@@ -1,9 +1,9 @@
-// ML Kit Document Scanner with auto edge detection
+// ML Kit Document Scanner with auto edge detection and Google Vision processing
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { Platform } from "react-native";
-import AIReceiptProcessor, { AIReceiptData } from "../utils/AIReceiptProcessor";
 import DocumentScannerNative from "../utils/DocumentScannerNative";
+import GoogleVisionService, { GoogleVisionReceiptData } from "../utils/GoogleVisionService";
 import OCRModule, { ReceiptData } from "../utils/OCRModule";
 
 export type ScannerOptions = {
@@ -12,7 +12,7 @@ export type ScannerOptions = {
   jpeg?: boolean;
   pdf?: boolean;
   scannerMode?: "base" | "full";
-  useAI?: boolean; // Enable AI-powered processing
+  useGoogleVision?: boolean; // Enable Google Vision API processing (highest accuracy)
 };
 
 export type Page = { imageUri?: string };
@@ -20,7 +20,7 @@ export type ScanResult = {
   pages: Page[];
   pdfUri?: string;
   pdfPageCount?: number;
-  receiptData?: ReceiptData | AIReceiptData; // OCR or AI processed receipt data
+  receiptData?: ReceiptData | GoogleVisionReceiptData; // OCR or Google Vision processed receipt data
 };
 
 const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
@@ -43,38 +43,31 @@ const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
         pdfPageCount: result.pdfPageCount,
       };
 
-      // Process first page with AI or OCR if available
+      // Process first page with Google Vision or OCR
       if (result.pages.length > 0 && result.pages[0].imageUri) {
         try {
-          let receiptData: ReceiptData | AIReceiptData;
+          let receiptData: ReceiptData | GoogleVisionReceiptData;
 
-          // Use AI processing if enabled and available
-          if (opts?.useAI) {
+          // Priority 1: Google Vision API (highest accuracy)
+          if (opts?.useGoogleVision) {
             try {
-              receiptData = await AIReceiptProcessor.processReceiptWithAI(
+              receiptData = await GoogleVisionService.processReceiptImage(
                 result.pages[0].imageUri
               );
-              console.log("AI processing successful");
-            } catch (aiError) {
-              console.warn(
-                "AI processing failed, falling back to OCR:",
-                aiError
-              );
-              // Fallback to traditional OCR
-              receiptData = await OCRModule.parseReceipt(
-                result.pages[0].imageUri
-              );
+              console.log("Google Vision processing successful");
+            } catch (visionError) {
+              console.warn("Google Vision failed, falling back to OCR:", visionError);
+              receiptData = await OCRModule.parseReceipt(result.pages[0].imageUri);
             }
-          } else {
-            // Use traditional OCR
-            receiptData = await OCRModule.parseReceipt(
-              result.pages[0].imageUri
-            );
+          }
+          // Priority 2: Traditional ML Kit OCR
+          else {
+            receiptData = await OCRModule.parseReceipt(result.pages[0].imageUri);
           }
 
           return { ...scanResult, receiptData };
         } catch (processingError) {
-          console.warn("Receipt processing failed:", processingError);
+          console.warn("All receipt processing methods failed:", processingError);
           // Return scan result without receipt data
           return scanResult;
         }
@@ -164,42 +157,49 @@ const extractText = async (imageUri: string) => {
   }
 };
 
-const parseReceipt = async (imageUri: string, useAI: boolean = false) => {
+const parseReceipt = async (
+  imageUri: string, 
+  useGoogleVision: boolean = false
+) => {
   if (Platform.OS === "android") {
     try {
-      if (useAI) {
+      // Priority 1: Google Vision (best accuracy)
+      if (useGoogleVision) {
         try {
-          // Try AI-powered processing first
-          return await AIReceiptProcessor.processReceiptWithAI(imageUri);
-        } catch (aiError) {
-          console.warn("AI processing failed, falling back to OCR:", aiError);
-          // Fallback to traditional OCR
-          return await OCRModule.parseReceipt(imageUri);
+          return await GoogleVisionService.processReceiptImage(imageUri);
+        } catch (visionError) {
+          console.warn("Google Vision failed, falling back:", visionError);
+          // Continue to OCR fallback
         }
-      } else {
-        // Use traditional OCR
-        return await OCRModule.parseReceipt(imageUri);
       }
+
+      // Priority 2: Traditional ML Kit OCR
+      return await OCRModule.parseReceipt(imageUri);
     } catch (error) {
       console.error("Receipt parsing failed:", error);
       throw error;
     }
   } else {
-    throw new Error("Receipt parsing is only available on Android");
+    // iOS fallback - use Google Vision if available
+    if (useGoogleVision) {
+      try {
+        return await GoogleVisionService.processReceiptImage(imageUri);
+      } catch (error) {
+        console.warn("Google Vision failed on iOS:", error);
+      }
+    }
+    
+    throw new Error("Receipt parsing requires Google Vision API on iOS");
   }
 };
 
-// New AI-enhanced functions
-const enhanceOCRWithAI = async (ocrText: string) => {
-  if (Platform.OS === "android") {
-    try {
-      return await AIReceiptProcessor.enhanceOCRWithAI(ocrText);
-    } catch (error) {
-      console.error("OCR enhancement failed:", error);
-      throw error;
-    }
-  } else {
-    throw new Error("AI enhancement is only available on Android");
+// Processing functions
+const processWithGoogleVision = async (imageUri: string) => {
+  try {
+    return await GoogleVisionService.processReceiptImage(imageUri);
+  } catch (error) {
+    console.error("Google Vision processing failed:", error);
+    throw error;
   }
 };
 
@@ -207,5 +207,5 @@ export default {
   startScanner,
   extractText,
   parseReceipt,
-  enhanceOCRWithAI,
+  processWithGoogleVision,
 };

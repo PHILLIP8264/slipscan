@@ -1,14 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs, useRouter } from "expo-router";
+import { Redirect, Tabs, useRouter } from "expo-router";
 import { TouchableOpacity } from "react-native";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Layout() {
   const router = useRouter();
+  const { authState, isLocked } = useAuth();
+
+
+  // Redirect to index if app is locked (will show BiometricLock)
+  if (isLocked) {
+    return <Redirect href="/" />;
+  }
 
   const SettingsButton = ({ color = "#000" }: { color?: string }) => (
     <TouchableOpacity
-      onPress={() => router.push("/profile")}
-      style={{ marginRight: 16, padding: 4 }}
+      onPress={() => router.push('/SettingsPage')}
+      style={{ paddingHorizontal: 16 }}
     >
       <Ionicons name="settings-outline" size={24} color={color} />
     </TouchableOpacity>

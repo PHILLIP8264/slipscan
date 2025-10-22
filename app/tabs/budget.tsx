@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -5,7 +6,10 @@ import {
   SafeAreaView,
   ScrollView,
   StatusBar,
-  StyleSheet
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import {
   BudgetList,
@@ -16,6 +20,7 @@ import {
 import {
   deleteBudget,
   listBudgets,
+  setupMockData,
 } from '../../utils/CRUD/budgetcrud';
 import { Budget } from '../../utils/localdb';
 
@@ -36,7 +41,16 @@ export default function BudgetPage() {
       } else {
         setLoading(true);
       }
-      const allBudgets = await listBudgets();
+      
+      let allBudgets = await listBudgets();
+      
+      // If no budgets exist, create mock data for development
+      if (allBudgets.length === 0) {
+        console.log('No budgets found, creating mock data...');
+        await setupMockData();
+        allBudgets = await listBudgets();
+      }
+      
       setBudgets(allBudgets);
     } catch (error) {
       console.error('Error loading budgets:', error);
@@ -68,15 +82,14 @@ export default function BudgetPage() {
   };
 
   const handleCreateBudget = () => {
-    // TODO: Navigate to create budget page
-    console.log('Navigate to create budget page');
-    Alert.alert('Coming Soon', 'Create budget functionality will be implemented next!');
+    router.push('../hiddenpages/budget_management/CreateBudget' as any);
   };
 
   const handleEditBudget = (budget: Budget) => {
-    // TODO: Navigate to edit budget page
-    console.log('Edit budget:', budget._id);
-    Alert.alert('Coming Soon', `Edit budget for ${budget.month} will be implemented next!`);
+    router.push({
+      pathname: '../hiddenpages/budget_management/EditBudget' as any,
+      params: { budgetId: budget._id }
+    });
   };
 
   const handleDeleteBudget = async (budgetId: string) => {
@@ -116,7 +129,38 @@ export default function BudgetPage() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
       
-      
+      {/* Header with Summary */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            // Development helper: tap to create mock data
+            console.log('Creating mock budget data...');
+            setupMockData().then(() => {
+              loadBudgets();
+              Alert.alert('Success', 'Mock budget data created!');
+            }).catch(error => {
+              console.error('Error creating mock data:', error);
+              Alert.alert('Error', 'Failed to create mock data');
+            });
+          }}
+        >
+          <Text style={styles.headerTitle}>Budget Overview</Text>
+        </TouchableOpacity>
+        <View style={styles.summaryCards}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Total Budget</Text>
+            <Text style={styles.summaryAmount}>
+              {formatCurrency(getTotalBudgetAmount())}
+            </Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Remaining</Text>
+            <Text style={styles.summaryAmount}>
+              {formatCurrency(getTotalRemainingAmount())}
+            </Text>
+          </View>
+        </View>
+      </View>
 
       <ScrollView 
         style={styles.content}
@@ -149,6 +193,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  header: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingBottom: 30,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   summaryCards: {
     flexDirection: 'row',

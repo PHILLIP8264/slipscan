@@ -11,11 +11,20 @@ export interface Category {
   updatedAt: Date;
 }
 
+export interface CategoryBudget {
+  categoryId: string;
+  categoryName: string; // Add category name for easier lookup
+  budgetAmount: number;
+  spent: number; // Track how much has been spent
+  remainingAmount: number; // Calculated: budgetAmount - spent
+}
+
 export interface Budget {
   _id: string;
   month: string;
-  totalBudget: number;
-  remainingBudget: number;
+  categoryBudgets: CategoryBudget[];
+  totalBudget: number; // Calculated from categoryBudgets
+  remainingBudget: number; // Calculated from categoryBudgets
   createdAt: Date;
   updatedAt: Date;
 }
