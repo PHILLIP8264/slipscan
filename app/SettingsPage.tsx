@@ -2,20 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import {
-    authenticateWithBiometrics,
-    isBiometricsAvailable,
-    isBiometricsEnabled,
-    setBiometricsEnabled
+  authenticateWithBiometrics,
+  isBiometricsAvailable,
+  isBiometricsEnabled,
+  setBiometricsEnabled
 } from '../utils/biometrics';
 import { useAuth } from './contexts/AuthContext';
 
@@ -47,12 +47,14 @@ export default function SettingsPage() {
   const handleBiometricsToggle = async (value: boolean) => {
     try {
       if (value) {
-        // If enabling, authenticate first to verify biometrics work
+        // ENABLING: Authenticate first to verify biometrics work
         const result = await authenticateWithBiometrics(
-          `Authenticate to enable ${biometricsType}`
+          `Authenticate to enable ${biometricsType}`,
+          { ignorePreference: true }
         );
         
         if (result.success) {
+          // Authentication successful - enable biometrics
           await setBiometricsEnabled(true);
           setBiometricsEnabledState(true);
           Alert.alert(
@@ -60,22 +62,47 @@ export default function SettingsPage() {
             `${biometricsType} authentication has been enabled for SlipScan.`
           );
         } else {
+          // Authentication failed - keep toggle OFF and don't save
+          setBiometricsEnabledState(false);
           Alert.alert(
             'Authentication Failed', 
-            result.error || 'Could not verify biometric authentication.'
+            result.error || 'Could not verify biometric authentication. Biometrics remains disabled.'
           );
         }
       } else {
-        // If disabling, just turn it off
-        await setBiometricsEnabled(false);
-        setBiometricsEnabledState(false);
+        // DISABLING: Show confirmation dialog first
         Alert.alert(
-          'Biometrics Disabled', 
-          'Biometric authentication has been disabled.'
+          'Disable Biometric Authentication',
+          `Are you sure you want to disable ${biometricsType} authentication? You will need to use your password to unlock the app.`,
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => {
+                // User canceled - keep toggle ON
+                setBiometricsEnabledState(true);
+              },
+            },
+            {
+              text: 'Disable',
+              style: 'destructive',
+              onPress: async () => {
+                // User confirmed - disable biometrics
+                await setBiometricsEnabled(false);
+                setBiometricsEnabledState(false);
+                Alert.alert(
+                  'Biometrics Disabled', 
+                  'Biometric authentication has been disabled.'
+                );
+              },
+            },
+          ]
         );
       }
     } catch (error) {
       console.error('Error toggling biometrics:', error);
+      // Reset toggle to previous state on error
+      setBiometricsEnabledState(!value);
       Alert.alert('Error', 'Could not change biometric settings.');
     }
   };
@@ -174,10 +201,10 @@ export default function SettingsPage() {
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
-                {authState.user?.name || 'User'}
+                {authState.lastUserName || 'User'}
               </Text>
               <Text style={styles.userEmail}>
-                {authState.user?.email || 'user@example.com'}
+                {authState.lastUserEmail || 'user@example.com'}
               </Text>
             </View>
           </View>

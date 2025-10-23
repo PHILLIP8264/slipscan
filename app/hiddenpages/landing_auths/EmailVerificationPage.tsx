@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -125,7 +125,7 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
           <Text style={styles.subtitle}>
             We've sent a verification email to{'\n'}
             <Text style={styles.email}>
-              {userEmail || authState.user?.email || 'your email address'}
+              {userEmail || (authState as any)?.user?.email || (authState as any)?.email || 'your email address'}
             </Text>
           </Text>
         </View>

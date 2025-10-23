@@ -84,7 +84,8 @@ export const isBiometricsAvailable = async (): Promise<{
  * Authenticate using biometrics
  */
 export const authenticateWithBiometrics = async (
-  promptMessage?: string
+  promptMessage?: string,
+  options?: { ignorePreference?: boolean }
 ): Promise<{
   success: boolean;
   error?: string;
@@ -108,8 +109,11 @@ export const authenticateWithBiometrics = async (
       };
     }
 
+    // If caller explicitly requests to ignore the stored app preference
+    // (for example when the user is enabling biometrics from settings),
+    // allow proceeding to the device prompt even if stored preference is false.
     const userPreference = await isBiometricsEnabled();
-    if (!userPreference) {
+    if (!options?.ignorePreference && !userPreference) {
       return {
         success: false,
         error: "Biometric authentication is disabled in app settings",
