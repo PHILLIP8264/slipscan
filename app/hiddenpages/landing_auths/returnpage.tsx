@@ -11,13 +11,17 @@ type Props = {
     hadBiometrics?: boolean;
 };
 
-export default function ReturnPage({ onLogin, onSignInDifferent, lastUserEmail, lastUserName, hadBiometrics }: Props): React.ReactElement {
+export default function ReturnPage({ onLogin, onSignInDifferent, lastUserName, hadBiometrics }: Props): React.ReactElement {
     const router = useRouter();
     const [isAuthenticating, setIsAuthenticating] = useState(false);
 
+    console.log('🔄 ReturnPage props:', { lastUserName, hadBiometrics });
+    console.log('🔄 ReturnPage lastUserName type:', typeof lastUserName);
+    console.log('🔄 ReturnPage lastUserName truthy?', !!lastUserName);
+
     const handleLogin = async () => {
         console.log(hadBiometrics);
-        if (hadBiometrics) {
+        if (hadBiometrics === true) {
             // User has biometrics enabled - trigger biometric authentication
             setIsAuthenticating(true);
             try {
@@ -54,7 +58,7 @@ export default function ReturnPage({ onLogin, onSignInDifferent, lastUserEmail, 
             } finally {
                 setIsAuthenticating(false);
             }
-        } else {
+        } else if (hadBiometrics === false) {
             // No biometrics - use regular login flow
             if (onLogin) return onLogin();
             Alert.alert("Login", "Login button pressed");
@@ -72,15 +76,9 @@ export default function ReturnPage({ onLogin, onSignInDifferent, lastUserEmail, 
         <SafeAreaView style={styles.safe}>
             <View style={styles.container}>
                 <Text style={styles.title}>Welcome Back</Text>
-                {lastUserEmail && (
-                    <Text style={styles.emailText}>{lastUserEmail}</Text>
-                )}
-                {lastUserName && lastUserName !== lastUserEmail && (
-                    <Text style={styles.nameText}>{lastUserName}</Text>
-                )}
-                {hadBiometrics && (
-                    <Text style={styles.biometricText}>🔒 Biometric login enabled</Text>
-                )}
+                <Text style={styles.emailText}>
+                    {lastUserName ? lastUserName : '[No name - undefined]'}
+                </Text>
 
                 <TouchableOpacity 
                     style={[styles.button, styles.primary, isAuthenticating && styles.buttonDisabled]} 
@@ -126,13 +124,6 @@ const styles = StyleSheet.create({
         color: "#666",
         marginBottom: 8,
         textAlign: "center",
-    },
-    nameText: {
-        fontSize: 18,
-        color: "#333",
-        marginBottom: 8,
-        textAlign: "center",
-        fontWeight: "500",
     },
     biometricText: {
         fontSize: 14,

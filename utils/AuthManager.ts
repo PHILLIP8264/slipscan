@@ -98,6 +98,7 @@ export class AuthManager {
           lastUserName: lastUserName || undefined,
           lastUserHadBiometrics: lastUserBiometrics === 'true',
         };
+        console.log('🔄 Loaded authState:', this.currentAuthState);
       } else {
         // First time user - show landing page
         console.log('🆕 First time user');
@@ -288,30 +289,44 @@ export class AuthManager {
     biometricsEnabled?: boolean;
   }): Promise<{ success: boolean; error?: string }> {
     try {
-      const updatePromises: Promise<void>[] = [];
+      console.log('📝 Starting updateUserSettings with:', updates);
 
+      // Update email if provided
       if (updates.email !== undefined) {
-        updatePromises.push(AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_EMAIL, updates.email));
+        console.log('🔄 Updating email from', this.currentAuthState.lastUserEmail, 'to', updates.email);
+        await AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_EMAIL, updates.email);
         this.currentAuthState.lastUserEmail = updates.email;
+        console.log('✅ Email saved to AsyncStorage and updated in currentAuthState');
       }
 
+      // Update name if provided
       if (updates.name !== undefined) {
-        updatePromises.push(AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_NAME, updates.name));
+        console.log('🔄 Updating name from', this.currentAuthState.lastUserName, 'to', updates.name);
+        await AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_NAME, updates.name);
         this.currentAuthState.lastUserName = updates.name;
+        console.log('✅ Name saved to AsyncStorage and updated in currentAuthState');
+        
+        // Verify the save worked
+        const savedName = await AsyncStorage.getItem(STORAGE_KEYS.LAST_USER_NAME);
+        console.log('🔍 Verification - Name retrieved from storage:', savedName);
       }
 
+      // Update biometrics if provided
       if (updates.biometricsEnabled !== undefined) {
-        updatePromises.push(AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_BIOMETRICS, updates.biometricsEnabled.toString()));
+        console.log('🔄 Updating biometrics to', updates.biometricsEnabled);
+        await AsyncStorage.setItem(STORAGE_KEYS.LAST_USER_BIOMETRICS, updates.biometricsEnabled.toString());
         this.currentAuthState.lastUserHadBiometrics = updates.biometricsEnabled;
+        console.log('✅ Biometrics saved to AsyncStorage and updated in currentAuthState');
       }
 
-      await Promise.all(updatePromises);
+      // Notify all listeners about the change
       this.notifyListeners();
       
-      console.log('✅ User settings updated');
+      console.log('✅ User settings updated successfully');
+      console.log('📄 Final authState:', this.currentAuthState);
       return { success: true };
     } catch (error) {
-      console.error('Error updating user settings:', error);
+      console.error('❌ Error updating user settings:', error);
       return { success: false, error: 'Failed to update settings' };
     }
   }
@@ -329,6 +344,8 @@ export class AuthManager {
   }
 
   private notifyListeners(): void {
+    console.log('📢 Notifying listeners with authState:', this.currentAuthState);
+    console.log('📢 Number of listeners:', this.listeners.length);
     this.listeners.forEach(listener => listener(this.currentAuthState));
   }
 }

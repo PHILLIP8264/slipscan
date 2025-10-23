@@ -3,14 +3,17 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import AuthManager from '../utils/AuthManager';
 import {
   authenticateWithBiometrics,
   isBiometricsAvailable,
@@ -20,14 +23,24 @@ import {
 import { useAuth } from './contexts/AuthContext';
 
 export default function SettingsPage() {
-  const { authState, logout } = useAuth();
+  const { authState, logout, resetPassword } = useAuth();
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
   const [biometricsType, setBiometricsType] = useState('Biometrics');
+  
+  // Modal states
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
 
   useEffect(() => {
     checkBiometricsStatus();
   }, []);
+
+  useEffect(() => {
+    console.log('AuthState updated in Settings:', authState);
+  }, [authState]);
 
   const checkBiometricsStatus = async () => {
     try {
@@ -57,6 +70,11 @@ export default function SettingsPage() {
           // Authentication successful - enable biometrics
           await setBiometricsEnabled(true);
           setBiometricsEnabledState(true);
+          
+          // Update AuthManager with new biometric preference
+          const authManager = AuthManager.getInstance();
+          await authManager.updateUserSettings({ biometricsEnabled: true });
+          
           Alert.alert(
             'Biometrics Enabled', 
             `${biometricsType} authentication has been enabled for SlipScan.`
@@ -90,6 +108,11 @@ export default function SettingsPage() {
                 // User confirmed - disable biometrics
                 await setBiometricsEnabled(false);
                 setBiometricsEnabledState(false);
+                
+                // Update AuthManager with new biometric preference
+                const authManager = AuthManager.getInstance();
+                await authManager.updateUserSettings({ biometricsEnabled: false });
+                
                 Alert.alert(
                   'Biometrics Disabled', 
                   'Biometric authentication has been disabled.'
@@ -131,6 +154,114 @@ export default function SettingsPage() {
   const handleGoBack = () => {
     router.back();
   };
+
+  const handleEditName = () => {
+    console.log('Edit name tapped'); // Debug log
+    setNewName(authState.lastUserName || '');
+    setShowNameModal(true);
+  };
+
+  const saveNewName = async () => {
+    if (newName && newName.trim() !== '') {
+      try {
+        console.log('Saving new name:', newName.trim());
+        const authManager = AuthManager.getInstance();
+        const result = await authManager.updateUserSettings({ name: newName.trim() });
+        
+        console.log('Update result:', result);
+        console.log('Current authState after update:', authState);
+        
+        if (result.success) {
+          setShowNameModal(false);
+          Alert.alert('Success', 'Your name has been updated.');
+        } else {
+          Alert.alert('Error', result.error || 'Failed to update name.');
+        }
+      } catch (error) {
+        console.error('Error updating name:', error);
+        Alert.alert('Error', 'Failed to update name.');
+      }
+    } else {
+      Alert.alert('Invalid Input', 'Please enter a valid name.');
+    }
+  };
+
+  const handleEditEmail = () => {
+    console.log('Edit email tapped'); // Debug log
+    setNewEmail(authState.lastUserEmail || '');
+    setShowEmailModal(true);
+  };
+
+  const saveNewEmail = async () => {
+    if (newEmail && newEmail.trim() !== '') {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail.trim())) {
+        Alert.alert('Invalid Email', 'Please enter a valid email address.');
+        return;
+      }
+
+      try {
+        console.log('Saving new email:', newEmail.trim());
+        const authManager = AuthManager.getInstance();
+        const result = await authManager.updateUserSettings({ email: newEmail.trim() });
+        
+        console.log('Email update result:', result);
+        console.log('Current authState after email update:', authState);
+        
+        if (result.success) {
+          setShowEmailModal(false);
+          Alert.alert('Success', 'Your email has been updated.');
+        } else {
+          Alert.alert('Error', result.error || 'Failed to update email.');
+        }
+      } catch (error) {
+        console.error('Error updating email:', error);
+        Alert.alert('Error', 'Failed to update email.');
+      }
+    } else {
+      Alert.alert('Invalid Input', 'Please enter a valid email address.');
+    }
+  };
+
+  const handleChangePassword = () => {
+    console.log('Change password tapped'); // Debug log
+    Alert.alert(
+      'Change Password',
+      `A password reset email will be sent to ${authState.lastUserEmail}. You can then follow the instructions in the email to set a new password.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Send Reset Email',
+          onPress: async () => {
+            if (authState.lastUserEmail) {
+              try {
+                const result = await resetPassword(authState.lastUserEmail);
+                if (result.success) {
+                  Alert.alert(
+                    'Email Sent',
+                    'A password reset email has been sent to your email address. Please check your inbox and follow the instructions.'
+                  );
+                } else {
+                  Alert.alert('Error', result.error || 'Failed to send password reset email.');
+                }
+              } catch (error) {
+                console.error('Error sending reset email:', error);
+                Alert.alert('Error', 'Failed to send password reset email.');
+              }
+            } else {
+              Alert.alert('Error', 'No email address found. Please update your email first.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+
 
   const SettingItem = ({ 
     icon, 
@@ -195,18 +326,25 @@ export default function SettingsPage() {
         {/* User Info Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.userCard}>
-            <View style={styles.userAvatar}>
-              <Ionicons name="person" size={30} color="#fff" />
-            </View>
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>
-                {authState.lastUserName || 'User'}
-              </Text>
-              <Text style={styles.userEmail}>
-                {authState.lastUserEmail || 'user@example.com'}
-              </Text>
-            </View>
+          <View style={styles.settingsGroup}>
+            <SettingItem
+              icon="person"
+              title="Display Name"
+              subtitle={authState.lastUserName || 'Tap to set your name'}
+              onPress={handleEditName}
+            />
+            <SettingItem
+              icon="mail"
+              title="Email Address"
+              subtitle={authState.lastUserEmail || 'Tap to set your email'}
+              onPress={handleEditEmail}
+            />
+            <SettingItem
+              icon="lock-closed"
+              title="Change Password"
+              subtitle="Update your account password"
+              onPress={handleChangePassword}
+            />
           </View>
         </View>
 
@@ -238,21 +376,31 @@ export default function SettingsPage() {
                 Alert.alert('Coming Soon', 'Notification settings will be available in a future update');
               }}
             />
-            <SettingItem
-              icon="finger-print"
-              title={`${biometricsType} Authentication`}
-              subtitle={`Use ${biometricsType.toLowerCase()} to secure your app`}
-              showArrow={false}
-              rightComponent={
-                <Switch
-                  value={biometricsEnabled}
-                  onValueChange={handleBiometricsToggle}
-                  trackColor={{ false: '#E5E5EA', true: '#34C759' }}
-                  thumbColor={biometricsEnabled ? '#ffffff' : '#ffffff'}
-                  ios_backgroundColor="#E5E5EA"
-                />
-              }
-            />
+            {biometricsAvailable ? (
+              <SettingItem
+                icon="finger-print"
+                title={`${biometricsType} Authentication`}
+                subtitle={`Use ${biometricsType.toLowerCase()} to secure your app`}
+                showArrow={false}
+                rightComponent={
+                  <Switch
+                    value={biometricsEnabled}
+                    onValueChange={handleBiometricsToggle}
+                    trackColor={{ false: '#E5E5EA', true: '#34C759' }}
+                    thumbColor={biometricsEnabled ? '#ffffff' : '#ffffff'}
+                    ios_backgroundColor="#E5E5EA"
+                  />
+                }
+              />
+            ) : (
+              <SettingItem
+                icon="finger-print"
+                title="Biometric Authentication"
+                subtitle="Not available on this device"
+                showArrow={false}
+                textColor="#8E8E93"
+              />
+            )}
           </View>
         </View>
 
@@ -329,6 +477,87 @@ export default function SettingsPage() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Name Edit Modal */}
+      <Modal
+        visible={showNameModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowNameModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Edit Display Name</Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              value={newName}
+              onChangeText={setNewName}
+              placeholder="Enter your display name"
+              autoFocus={true}
+              maxLength={50}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={() => setShowNameModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton]} 
+                onPress={saveNewName}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Email Edit Modal */}
+      <Modal
+        visible={showEmailModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEmailModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Edit Email Address</Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              value={newEmail}
+              onChangeText={setNewEmail}
+              placeholder="Enter your email address"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoFocus={true}
+              maxLength={100}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={() => setShowEmailModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton]} 
+                onPress={saveNewEmail}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -373,38 +602,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 8,
   },
-  userCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopWidth: 0.5,
-    borderBottomWidth: 0.5,
-    borderColor: '#C7C7CC',
-  },
-  userAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 2,
-  },
-  userEmail: {
-    fontSize: 15,
-    color: '#6D6D70',
-  },
+
   settingsGroup: {
     backgroundColor: '#fff',
     borderTopWidth: 0.5,
@@ -449,5 +647,64 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6D6D70',
     marginTop: 2,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    backgroundColor: '#F2F2F7',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#E5E5EA',
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#fff',
   },
 });

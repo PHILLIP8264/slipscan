@@ -87,13 +87,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Ensure AuthManager is initialized before subscribing
     const initializeAndSubscribe = async () => {
       await authManager.ensureInitialized();
-      setAuthState(authManager.getAuthState());
+      console.log('🔄 AuthContext - Getting initial auth state after initialization');
+      const currentState = authManager.getAuthState();
+      console.log('🔄 AuthContext - Initial state from AuthManager:', currentState);
+      setAuthState(currentState);
     };
     
     initializeAndSubscribe();
 
-    // Subscribe to auth state changes
-    const unsubscribe = authManager.addAuthStateListener(setAuthState);
+    // Subscribe to auth state changes  
+    const unsubscribe = authManager.addAuthStateListener((newState) => {
+      console.log('🔄 AuthContext - Received state update from AuthManager:', newState);
+      setAuthState(newState);
+    });
+    
+    // After setting up listener, get the current state again to ensure we have the latest
+    const finalState = authManager.getAuthState();
+    console.log('🔄 AuthContext - Final state check after listener setup:', finalState);
+    setAuthState(finalState);
     
     // Subscribe to app state changes
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);

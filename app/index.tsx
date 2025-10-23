@@ -67,6 +67,7 @@ export default function Index() {
           onLogin={handleNavigateToLogin}
           onSignInDifferent={handleNavigateToLanding}
           lastUserEmail={authState.lastUserEmail}
+          lastUserName={authState.lastUserName}
           hadBiometrics={authState.lastUserHadBiometrics}
         />
       )}
