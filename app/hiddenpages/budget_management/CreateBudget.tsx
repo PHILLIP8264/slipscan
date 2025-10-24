@@ -2,27 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import {
-    AddCategoryModal,
-    CategoryBudgetItem,
-    CategoryDropdown
+  AddCategoryModal,
+  CategoryBudgetItem,
+  CategoryDropdown
 } from '../../../assets/componets/budget';
-import { createBudget } from '../../../utils/CRUD/budgetcrud';
-import { listCategories } from '../../../utils/CRUD/categorycrud';
+import { createBudget, listBudgets } from '../../../utils/CRUD/budgetcrud';
+import { createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
 import { Category, CategoryBudget } from '../../../utils/localdb';
 
-export function CreateBudget() {
+export default function CreateBudget() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
@@ -37,6 +37,9 @@ export function CreateBudget() {
 
   const loadCategories = async () => {
     try {
+      // Initialize default categories if none exist
+      await initializeBudgetCategories();
+      
       const categories = await listCategories();
       setAvailableCategories(categories);
     } catch (error) {
@@ -77,13 +80,43 @@ export function CreateBudget() {
     return options;
   };
 
-  const handleCategoryToggle = (categoryId: string) => {
+  const handleCategoryToggle = async (categoryId: string) => {
     if (selectedCategoryIds.includes(categoryId)) {
       // Remove category
       setSelectedCategoryIds(prev => prev.filter(id => id !== categoryId));
       setCategoryBudgets(prev => prev.filter(cb => cb.categoryId !== categoryId));
     } else {
-      // Add category
+      // Check if this is a hardcoded category that doesn't exist in DB yet
+      if (categoryId.startsWith('hardcoded_')) {
+        const hardcodedName = categoryId.replace('hardcoded_', '');
+        const hardcodedCategories = getHardcodedCategories();
+        const hardcodedCat = hardcodedCategories.find(hc => hc.name === hardcodedName);
+        
+        if (hardcodedCat) {
+          try {
+            // Create the category in database
+            const createdCategory = await createCategory(hardcodedCat);
+            // Refresh categories list
+            await loadCategories();
+            // Now select the newly created category
+            setSelectedCategoryIds(prev => [...prev, createdCategory._id]);
+            const newCategoryBudget: CategoryBudget = {
+              categoryId: createdCategory._id,
+              categoryName: createdCategory.name,
+              budgetAmount: createdCategory.budgetAmount,
+              spent: 0,
+              remainingAmount: createdCategory.budgetAmount
+            };
+            setCategoryBudgets(prev => [...prev, newCategoryBudget]);
+          } catch (error) {
+            console.error('Error creating hardcoded category:', error);
+            Alert.alert('Error', 'Failed to create category');
+          }
+        }
+        return;
+      }
+      
+      // Add existing category
       setSelectedCategoryIds(prev => [...prev, categoryId]);
       const category = availableCategories.find(cat => cat._id === categoryId);
       if (category) {
@@ -119,12 +152,35 @@ export function CreateBudget() {
     setAvailableCategories(prev => [...prev, newCategory]);
   };
 
+  const handleAddNewCategoryRequest = () => {
+    setShowAddCategoryModal(true);
+  };
+
+  const handleCancel = () => {
+    if (categoryBudgets.length > 0) {
+      Alert.alert(
+        'Discard Changes?',
+        'You have unsaved changes. Are you sure you want to cancel?',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { 
+            text: 'Discard', 
+            style: 'destructive',
+            onPress: () => router.back()
+          }
+        ]
+      );
+    } else {
+      router.back();
+    }
+  };
+
   const getTotalBudget = () => {
     return categoryBudgets.reduce((total, cb) => total + cb.budgetAmount, 0);
   };
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString('en-US', { 
+    return `R${amount.toLocaleString('en-ZA', { 
       minimumFractionDigits: 2, 
       maximumFractionDigits: 2 
     })}`;
@@ -138,17 +194,28 @@ export function CreateBudget() {
 
     const totalBudget = getTotalBudget();
     if (totalBudget <= 0) {
-      Alert.alert('Error', 'Total budget must be greater than $0');
+      Alert.alert('Error', 'Total budget must be greater than R0');
       return;
     }
 
     try {
       setLoading(true);
       
-      await createBudget({
+      const budgetData = {
         month: formatMonthForStorage(selectedMonth),
         categoryBudgets: categoryBudgets
-      });
+      };
+      
+      console.log('Creating budget with data:', budgetData);
+      
+      const createdBudget = await createBudget(budgetData);
+      
+      console.log('Budget created successfully:', createdBudget);
+      
+      // Verify the budget was saved by checking the database
+      const allBudgets = await listBudgets();
+      console.log('All budgets after creation:', allBudgets);
+      console.log('Total budgets count:', allBudgets.length);
 
       Alert.alert(
         'Success', 
@@ -184,96 +251,108 @@ export function CreateBudget() {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Budget</Text>
-        <TouchableOpacity 
-          style={[styles.saveButton, loading && styles.disabledButton]}
-          onPress={handleSaveBudget}
-          disabled={loading}
-        >
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
+        <View style={{ width: 24 }} />
       </View>
 
-      <KeyboardAvoidingView 
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView 
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
+      <View style={styles.content}>
+        <KeyboardAvoidingView 
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          {/* Month Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Budget Month</Text>
-            <TouchableOpacity 
-              style={styles.monthSelector}
-              onPress={() => setShowMonthPicker(true)}
-            >
-              <Text style={styles.monthText}>
-                {formatMonthForDisplay(selectedMonth)}
-              </Text>
-              <Ionicons name="calendar" size={24} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Category Selection */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Categories</Text>
+          <ScrollView 
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Month Selection */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Budget Month</Text>
               <TouchableOpacity 
-                style={styles.addCategoryButton}
-                onPress={() => setShowAddCategoryModal(true)}
+                style={styles.monthSelector}
+                onPress={() => setShowMonthPicker(true)}
               >
-                <Ionicons name="add-circle" size={20} color="#007AFF" />
-                <Text style={styles.addCategoryText}>Add New</Text>
+                <Text style={styles.monthText}>
+                  {formatMonthForDisplay(selectedMonth)}
+                </Text>
+                <Ionicons name="calendar" size={24} color="#007AFF" />
               </TouchableOpacity>
             </View>
-            
-            <CategoryDropdown
-              categories={availableCategories}
-              selectedCategories={selectedCategoryIds}
-              onCategoryToggle={handleCategoryToggle}
-              placeholder="Select categories for this budget"
-            />
-          </View>
 
-          {/* Selected Categories Budget Amounts */}
-          {selectedCategories.length > 0 && (
+            {/* Category Selection */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Budget Amounts</Text>
-              {selectedCategories.map(category => {
-                const categoryBudget = categoryBudgets.find(cb => cb.categoryId === category._id);
-                return (
-                  <CategoryBudgetItem
-                    key={category._id}
-                    category={category}
-                    categoryBudget={categoryBudget}
-                    onAmountChange={handleCategoryAmountChange}
-                    onRemove={handleRemoveCategory}
-                    editable={true}
-                  />
-                );
-              })}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Categories</Text>
+              </View>
+              
+              <CategoryDropdown
+                categories={availableCategories}
+                selectedCategories={selectedCategoryIds}
+                onCategoryToggle={handleCategoryToggle}
+                onAddNewCategory={handleAddNewCategoryRequest}
+                placeholder="Select categories for this budget"
+              />
             </View>
-          )}
 
-          {/* Total Budget Display */}
-          {categoryBudgets.length > 0 && (
-            <View style={styles.totalSection}>
-              <View style={styles.totalCard}>
-                <Text style={styles.totalLabel}>Total Budget</Text>
-                <Text style={styles.totalAmount}>
-                  {formatCurrency(getTotalBudget())}
-                </Text>
-                <Text style={styles.totalSubtext}>
+            {/* Selected Categories Budget Amounts */}
+            {selectedCategories.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Budget Amounts</Text>
+                {selectedCategories.map(category => {
+                  const categoryBudget = categoryBudgets.find(cb => cb.categoryId === category._id);
+                  return (
+                    <CategoryBudgetItem
+                      key={category._id}
+                      category={category}
+                      categoryBudget={categoryBudget}
+                      onAmountChange={handleCategoryAmountChange}
+                      onRemove={handleRemoveCategory}
+                      editable={true}
+                    />
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Fixed Bottom Section - Total and Actions */}
+          <View style={styles.bottomSection}>
+            {/* Total Budget Display */}
+            {categoryBudgets.length > 0 && (
+              <View style={styles.totalSectionFixed}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabelFixed}>Total Budget:</Text>
+                  <Text style={styles.totalAmountFixed}>
+                    {formatCurrency(getTotalBudget())}
+                  </Text>
+                </View>
+                <Text style={styles.totalSubtextFixed}>
                   Across {categoryBudgets.length} {categoryBudgets.length === 1 ? 'category' : 'categories'}
                 </Text>
               </View>
+            )}
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={handleCancel}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.saveButtonFixed, loading && styles.disabledButton]}
+                onPress={handleSaveBudget}
+                disabled={loading}
+              >
+                <Text style={styles.saveButtonTextFixed}>
+                  {loading ? 'Saving...' : 'Save Budget'}
+                </Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
 
       <AddCategoryModal
         visible={showAddCategoryModal}
@@ -485,5 +564,112 @@ const styles = StyleSheet.create({
   selectedMonthOptionText: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  // New styles for improved layout
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 16,
+  },
+  addCategoryButtonLarge: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    borderStyle: 'dashed',
+  },
+  addCategoryTextLarge: {
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  bottomSection: {
+    backgroundColor: 'white',
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  totalSectionFixed: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  totalLabelFixed: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  totalAmountFixed: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#007AFF',
+  },
+  totalSubtextFixed: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButtonFixed: {
+    flex: 2,
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  saveButtonTextFixed: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

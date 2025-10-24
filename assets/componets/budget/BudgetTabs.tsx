@@ -9,9 +9,9 @@ interface BudgetTabsProps {
 }
 
 const tabOptions = [
-  { tab: 'past' as BudgetTab, title: 'Past Budgets' },
-  { tab: 'upcoming' as BudgetTab, title: 'Upcoming Budgets' },
-  { tab: 'current' as BudgetTab, title: 'Current Budgets' },
+  { tab: 'past' as BudgetTab, title: 'Past' },
+  { tab: 'current' as BudgetTab, title: 'Current' },
+  { tab: 'upcoming' as BudgetTab, title: 'Upcoming' },
 ];
 
 export const BudgetTabs: React.FC<BudgetTabsProps> = ({
@@ -63,7 +63,7 @@ export const BudgetTabs: React.FC<BudgetTabsProps> = ({
 const styles = StyleSheet.create({
   tabsContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 12,
     backgroundColor: 'transparent',
   },
   scrollContent: {
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   tabButton: {
-    marginTop: 40,
+    marginTop: 4,
     paddingHorizontal: 20,
     paddingVertical: 14,
     marginRight: 12,

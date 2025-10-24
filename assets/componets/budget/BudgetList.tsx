@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { ReactElement } from 'react';
+import { FlatList, RefreshControlProps, StyleSheet, Text, View } from 'react-native';
 import { Budget } from '../../../utils/localdb';
 import { BudgetTile } from './BudgetTile';
 
@@ -9,6 +9,7 @@ interface BudgetListProps {
   onEditBudget: (budget: Budget) => void;
   onDeleteBudget: (budgetId: string) => void;
   loading?: boolean;
+  refreshControl?: ReactElement<RefreshControlProps>;
 }
 
 export const BudgetList: React.FC<BudgetListProps> = ({
@@ -16,6 +17,7 @@ export const BudgetList: React.FC<BudgetListProps> = ({
   onEditBudget,
   onDeleteBudget,
   loading = false,
+  refreshControl,
 }) => {
   const renderBudgetItem = ({ item }: { item: Budget }) => (
     <BudgetTile
@@ -58,6 +60,7 @@ export const BudgetList: React.FC<BudgetListProps> = ({
       style={styles.listContainer}
       showsVerticalScrollIndicator={false}
       ListEmptyComponent={<EmptyState />}
+      refreshControl={refreshControl}
       contentContainerStyle={budgets.length === 0 ? styles.emptyListContainer : undefined}
     />
   );
@@ -66,6 +69,7 @@ export const BudgetList: React.FC<BudgetListProps> = ({
 const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
+    paddingBottom: 20,
   },
   emptyListContainer: {
     flex: 1,

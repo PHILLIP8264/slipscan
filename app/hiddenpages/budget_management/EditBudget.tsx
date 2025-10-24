@@ -2,28 +2,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import {
-    AddCategoryModal,
-    BudgetCategoryBreakdown,
-    CategoryBudgetItem,
-    CategoryDropdown
+  AddCategoryModal,
+  BudgetCategoryBreakdown,
+  CategoryBudgetItem,
+  CategoryDropdown
 } from '../../../assets/componets/budget';
 import { getBudgetById, listBudgets, updateBudget } from '../../../utils/CRUD/budgetcrud';
-import { listCategories } from '../../../utils/CRUD/categorycrud';
+import { createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
 import { Budget, Category, CategoryBudget } from '../../../utils/localdb';
 
-export function EditBudget() {
+export default function EditBudget() {
   const params = useLocalSearchParams<{ budgetId: string }>();
   const budgetId = params.budgetId;
 
@@ -47,6 +47,9 @@ export function EditBudget() {
   const loadBudgetData = async () => {
     try {
       setInitialLoading(true);
+      
+      // Initialize categories first if needed
+      await initializeBudgetCategories();
       
       // Load all required data in parallel
       const [budget, categories, allBudgets] = await Promise.all([
@@ -116,13 +119,43 @@ export function EditBudget() {
     return options;
   };
 
-  const handleCategoryToggle = (categoryId: string) => {
+  const handleCategoryToggle = async (categoryId: string) => {
     if (selectedCategoryIds.includes(categoryId)) {
       // Remove category
       setSelectedCategoryIds(prev => prev.filter(id => id !== categoryId));
       setCategoryBudgets(prev => prev.filter(cb => cb.categoryId !== categoryId));
     } else {
-      // Add category
+      // Check if this is a hardcoded category that doesn't exist in DB yet
+      if (categoryId.startsWith('hardcoded_')) {
+        const hardcodedName = categoryId.replace('hardcoded_', '');
+        const hardcodedCategories = getHardcodedCategories();
+        const hardcodedCat = hardcodedCategories.find(hc => hc.name === hardcodedName);
+        
+        if (hardcodedCat) {
+          try {
+            // Create the category in database
+            const createdCategory = await createCategory(hardcodedCat);
+            // Refresh categories list
+            await loadBudgetData();
+            // Now select the newly created category
+            setSelectedCategoryIds(prev => [...prev, createdCategory._id]);
+            const newCategoryBudget: CategoryBudget = {
+              categoryId: createdCategory._id,
+              categoryName: createdCategory.name,
+              budgetAmount: createdCategory.budgetAmount,
+              spent: 0,
+              remainingAmount: createdCategory.budgetAmount
+            };
+            setCategoryBudgets(prev => [...prev, newCategoryBudget]);
+          } catch (error) {
+            console.error('Error creating hardcoded category:', error);
+            Alert.alert('Error', 'Failed to create category');
+          }
+        }
+        return;
+      }
+      
+      // Add existing category
       setSelectedCategoryIds(prev => [...prev, categoryId]);
       const category = availableCategories.find(cat => cat._id === categoryId);
       if (category) {
@@ -164,12 +197,16 @@ export function EditBudget() {
     setAvailableCategories(prev => [...prev, newCategory]);
   };
 
+  const handleAddNewCategoryRequest = () => {
+    setShowAddCategoryModal(true);
+  };
+
   const getTotalBudget = () => {
     return categoryBudgets.reduce((total, cb) => total + cb.budgetAmount, 0);
   };
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString('en-US', { 
+    return `R${amount.toLocaleString('en-ZA', { 
       minimumFractionDigits: 2, 
       maximumFractionDigits: 2 
     })}`;
@@ -183,7 +220,7 @@ export function EditBudget() {
 
     const totalBudget = getTotalBudget();
     if (totalBudget <= 0) {
-      Alert.alert('Error', 'Total budget must be greater than $0');
+      Alert.alert('Error', 'Total budget must be greater than R0');
       return;
     }
 
@@ -290,6 +327,7 @@ export function EditBudget() {
               categories={availableCategories}
               selectedCategories={selectedCategoryIds}
               onCategoryToggle={handleCategoryToggle}
+              onAddNewCategory={handleAddNewCategoryRequest}
               placeholder="Select categories for this budget"
             />
           </View>

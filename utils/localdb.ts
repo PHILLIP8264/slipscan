@@ -1,5 +1,21 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { v4 as uuidv4 } from "uuid";
+
+// React Native compatible UUID generator
+function generateUUID(): string {
+  let d = new Date().getTime();
+  let d2 = (typeof performance !== 'undefined' && performance.now && (performance.now() * 1000)) || 0;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    let r = Math.random() * 16;
+    if (d > 0) {
+      r = (d + r) % 16 | 0;
+      d = Math.floor(d / 16);
+    } else {
+      r = (d2 + r) % 16 | 0;
+      d2 = Math.floor(d2 / 16);
+    }
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
 
 // Define your document interfaces (NoSQL style)
 export interface Category {
@@ -67,8 +83,12 @@ export class NoSQLDB {
   // Generic method to get all documents from a collection
   static async getCollection<T>(collectionName: string): Promise<T[]> {
     try {
+      console.log(`Getting collection: ${collectionName}`);
       const data = await AsyncStorage.getItem(collectionName);
-      return data ? JSON.parse(data) : [];
+      console.log(`Raw data for ${collectionName}:`, data ? 'Found data' : 'No data');
+      const result = data ? JSON.parse(data) : [];
+      console.log(`Parsed ${collectionName}:`, result.length, 'items');
+      return result;
     } catch (error) {
       console.error(`Error getting collection ${collectionName}:`, error);
       return [];
@@ -81,7 +101,9 @@ export class NoSQLDB {
     documents: T[]
   ): Promise<void> {
     try {
+      console.log(`Saving collection ${collectionName} with ${documents.length} items`);
       await AsyncStorage.setItem(collectionName, JSON.stringify(documents));
+      console.log(`Successfully saved ${collectionName}`);
     } catch (error) {
       console.error(`Error saving collection ${collectionName}:`, error);
       throw error;
@@ -109,7 +131,7 @@ export class NoSQLDB {
 
     const newDocument = {
       ...document,
-      _id: document._id || uuidv4(),
+      _id: document._id || generateUUID(),
       createdAt: now,
       updatedAt: now,
     } as unknown as T;

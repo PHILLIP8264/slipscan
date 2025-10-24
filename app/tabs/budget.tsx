@@ -4,11 +4,8 @@ import {
   Alert,
   RefreshControl,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View
 } from 'react-native';
 import {
@@ -22,10 +19,11 @@ import {
   listBudgets,
   setupMockData,
 } from '../../utils/CRUD/budgetcrud';
+import { initializeBudgetCategories } from '../../utils/CRUD/categorycrud';
 import { Budget } from '../../utils/localdb';
 
 export default function BudgetPage() {
-  const [selectedTab, setSelectedTab] = useState<BudgetTab>('upcoming');
+  const [selectedTab, setSelectedTab] = useState<BudgetTab>('current');
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,11 +40,13 @@ export default function BudgetPage() {
         setLoading(true);
       }
       
+      // Initialize categories first
+      await initializeBudgetCategories();
+      
       let allBudgets = await listBudgets();
       
-      // If no budgets exist, create mock data for development
+      //no budgets exist, create mock data for development
       if (allBudgets.length === 0) {
-        console.log('No budgets found, creating mock data...');
         await setupMockData();
         allBudgets = await listBudgets();
       }
@@ -65,7 +65,7 @@ export default function BudgetPage() {
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     
-    return budgets.filter(budget => {
+    const filtered = budgets.filter(budget => {
       const budgetMonth = budget.month;
       
       switch (selectedTab) {
@@ -79,6 +79,19 @@ export default function BudgetPage() {
           return true;
       }
     });
+    
+    // Sort budgets by month for proper display order
+    filtered.sort((a, b) => {
+      if (selectedTab === 'past') {
+        // For past budgets, show most recent first (descending)
+        return b.month.localeCompare(a.month);
+      } else {
+        // For current and upcoming, show chronological order (ascending)
+        return a.month.localeCompare(b.month);
+      }
+    });
+    
+    return filtered;
   };
 
   const handleCreateBudget = () => {
@@ -118,7 +131,7 @@ export default function BudgetPage() {
   };
   
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `R${amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const onRefresh = () => {
@@ -129,62 +142,32 @@ export default function BudgetPage() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
       
-      {/* Header with Summary */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            // Development helper: tap to create mock data
-            console.log('Creating mock budget data...');
-            setupMockData().then(() => {
-              loadBudgets();
-              Alert.alert('Success', 'Mock budget data created!');
-            }).catch(error => {
-              console.error('Error creating mock data:', error);
-              Alert.alert('Error', 'Failed to create mock data');
-            });
-          }}
-        >
-          <Text style={styles.headerTitle}>Budget Overview</Text>
-        </TouchableOpacity>
-        <View style={styles.summaryCards}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Total Budget</Text>
-            <Text style={styles.summaryAmount}>
-              {formatCurrency(getTotalBudgetAmount())}
-            </Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Remaining</Text>
-            <Text style={styles.summaryAmount}>
-              {formatCurrency(getTotalRemainingAmount())}
-            </Text>
-          </View>
+
+
+      <View style={styles.content}>
+        <View style={styles.headerSection}>
+          <BudgetTabs
+            selectedTab={selectedTab}
+            onTabChange={setSelectedTab}
+          />
+
+          {(selectedTab === 'upcoming' || selectedTab === 'current') && (
+            <CreateBudgetButton onPress={handleCreateBudget} />
+          )}
+        </View>
+
+        <View style={styles.listSection}>
+          <BudgetList
+            budgets={filteredBudgets}
+            onEditBudget={handleEditBudget}
+            onDeleteBudget={handleDeleteBudget}
+            loading={loading}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          />
         </View>
       </View>
-
-      <ScrollView 
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        <BudgetTabs
-          selectedTab={selectedTab}
-          onTabChange={setSelectedTab}
-        />
-
-        {selectedTab === 'upcoming' && (
-          <CreateBudgetButton onPress={handleCreateBudget} />
-        )}
-
-        <BudgetList
-          budgets={filteredBudgets}
-          onEditBudget={handleEditBudget}
-          onDeleteBudget={handleDeleteBudget}
-          loading={loading}
-        />
-      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -194,19 +177,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  header: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    paddingBottom: 30,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
+
   summaryCards: {
     flexDirection: 'row',
     gap: 16,
@@ -234,10 +205,15 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginTop: -20,
+    marginTop: 20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     backgroundColor: '#f8f9fa',
-    overflow: 'hidden',
+  },
+  headerSection: {
+    backgroundColor: '#f8f9fa',
+  },
+  listSection: {
+    flex: 1,
   },
 });

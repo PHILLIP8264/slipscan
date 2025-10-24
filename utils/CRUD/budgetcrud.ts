@@ -21,9 +21,13 @@ export async function createBudget(budgetData: {
   categoryBudgets: CategoryBudget[];
 }): Promise<Budget> {
   try {
+    console.log('createBudget called with:', budgetData);
+    
     // Calculate totals from category budgets
     const totalBudget = calculateTotalBudget(budgetData.categoryBudgets);
     const remainingBudget = calculateRemainingBudget(budgetData.categoryBudgets);
+    
+    console.log('Calculated totals - total:', totalBudget, 'remaining:', remainingBudget);
     
     const fullBudgetData = {
       ...budgetData,
@@ -31,7 +35,13 @@ export async function createBudget(budgetData: {
       remainingBudget,
     };
     
-    return await NoSQLDB.addDocument<Budget>(COLLECTIONS.BUDGETS, fullBudgetData);
+    console.log('Full budget data to save:', fullBudgetData);
+    
+    const result = await NoSQLDB.addDocument<Budget>(COLLECTIONS.BUDGETS, fullBudgetData);
+    
+    console.log('Budget saved to database:', result);
+    
+    return result;
   } catch (error) {
     console.error("Error creating budget:", error);
     throw error;
@@ -86,7 +96,9 @@ export async function deleteBudget(id: string): Promise<boolean> {
 // List all budgets
 export async function listBudgets(): Promise<Budget[]> {
   try {
-    return await NoSQLDB.getCollection<Budget>(COLLECTIONS.BUDGETS);
+    const budgets = await NoSQLDB.getCollection<Budget>(COLLECTIONS.BUDGETS);
+    console.log('Retrieved budgets from database:', budgets);
+    return budgets;
   } catch (error) {
     console.error("Error listing budgets:", error);
     throw error;

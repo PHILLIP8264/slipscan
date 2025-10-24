@@ -1,4 +1,4 @@
 // Budget Management Pages Index
-export { CreateBudget } from './CreateBudget';
-export { EditBudget } from './EditBudget';
+export { default as CreateBudget } from './CreateBudget';
+export { default as EditBudget } from './EditBudget';
 

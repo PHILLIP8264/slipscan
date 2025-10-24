@@ -50,7 +50,7 @@ export const CategoryBudgetItem: React.FC<CategoryBudgetItemProps> = ({
   };
 
   const formatCurrency = (value: number) => {
-    return `$${value.toLocaleString('en-US', { 
+    return `R${value.toLocaleString('en-ZA', { 
       minimumFractionDigits: 2, 
       maximumFractionDigits: 2 
     })}`;

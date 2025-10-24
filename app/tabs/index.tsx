@@ -4,15 +4,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import DocumentScanner from '../../utils/DocumentScanner';
 
@@ -106,15 +106,15 @@ export default function Index() {
             <Text style={styles.budgetTitle}>October 2025 Budget</Text>
             <View style={styles.budgetSummary}>
               <View style={styles.budgetSummaryItem}>
-                <Text style={styles.budgetAmount}>$2,500</Text>
+                <Text style={styles.budgetAmount}>R2,500</Text>
                 <Text style={styles.budgetLabel}>Total Budget</Text>
               </View>
               <View style={styles.budgetSummaryItem}>
-                <Text style={styles.spentAmount}>$1,250</Text>
+                <Text style={styles.spentAmount}>R1,250</Text>
                 <Text style={styles.budgetLabel}>Spent</Text>
               </View>
               <View style={styles.budgetSummaryItem}>
-                <Text style={styles.remainingAmount}>$1,250</Text>
+                <Text style={styles.remainingAmount}>R1,250</Text>
                 <Text style={styles.budgetLabel}>Remaining</Text>
               </View>
             </View>
@@ -213,8 +213,8 @@ export default function Index() {
                 <Text style={styles.categoryName}>Food & Dining</Text>
               </View>
               <View style={styles.categoryAmounts}>
-                <Text style={styles.categorySpent}>$520</Text>
-                <Text style={styles.categoryBudget}>/ $800</Text>
+                <Text style={styles.categorySpent}>R520</Text>
+                <Text style={styles.categoryBudget}>/ R800</Text>
               </View>
               <View style={styles.progressBar}>
                 <View style={[styles.progressFill, { width: '65%', backgroundColor: '#FF6B6B' }]} />
@@ -229,8 +229,8 @@ export default function Index() {
                 <Text style={styles.categoryName}>Transportation</Text>
               </View>
               <View style={styles.categoryAmounts}>
-                <Text style={styles.categorySpent}>$320</Text>
-                <Text style={styles.categoryBudget}>/ $500</Text>
+                <Text style={styles.categorySpent}>R320</Text>
+                <Text style={styles.categoryBudget}>/ R500</Text>
               </View>
               <View style={styles.progressBar}>
                 <View style={[styles.progressFill, { width: '64%', backgroundColor: '#4ECDC4' }]} />

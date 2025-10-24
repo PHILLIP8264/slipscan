@@ -16,7 +16,7 @@ export const BudgetCategoryBreakdown: React.FC<BudgetCategoryBreakdownProps> = (
   compact = false
 }) => {
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString('en-US', { 
+    return `R${amount.toLocaleString('en-ZA', { 
       minimumFractionDigits: 2, 
       maximumFractionDigits: 2 
     })}`;
