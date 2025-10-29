@@ -22,7 +22,7 @@ export const BudgetTile: React.FC<BudgetTileProps> = ({ budget, onEdit, onDelete
     try {
       // Assuming month is in format "YYYY-MM" or "MM/YYYY" or similar
       const date = new Date(monthString + '-01'); // Add day to make it a valid date
-      return date.toLocaleDateString('en-US', { 
+      return date.toLocaleDateString('eu-ZA', { 
         year: 'numeric', 
         month: 'long' 
       });

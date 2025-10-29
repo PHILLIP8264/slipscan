@@ -88,83 +88,360 @@ class OCRModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
         val result = Arguments.createMap()
         val lines = text.split("\n")
         
-        // Initialize default values
-        var merchant = ""
-        var total = ""
-        var date = ""
-        val items = Arguments.createArray()
+        // Parse basic fields
+        val merchant = parseMerchant(lines)
+        val total = parseTotal(text, lines)
+        val date = parseDate(text, lines)
+        val items = parseItemsEnhanced(text, lines)
         
-        // Parse merchant (usually first few lines)
+        // Parse enhanced store details
+        val storeDetails = Arguments.createMap()
+        storeDetails.putString("name", merchant)
+        storeDetails.putString("address", parseAddress(text))
+        storeDetails.putString("phone", parsePhone(text))
+        storeDetails.putString("email", parseEmail(text))
+        storeDetails.putString("storeId", parseStoreId(text))
+        storeDetails.putString("cashierName", parseCashierName(text))
+        storeDetails.putString("registerNumber", parseRegisterNumber(text))
+        
+        // Parse tax information
+        val taxInfo = Arguments.createMap()
+        taxInfo.putString("taxAmount", parseTaxAmount(text))
+        taxInfo.putString("taxRate", parseTaxRate(text))
+        taxInfo.putString("vatAmount", parseVATAmount(text))
+        taxInfo.putString("vatRate", parseVATRate(text))
+        taxInfo.putString("subtotal", parseSubtotal(text))
+        taxInfo.putString("taxableAmount", parseTaxableAmount(text))
+        taxInfo.putString("exemptAmount", parseExemptAmount(text))
+        
+        // Parse payment information
+        val paymentInfo = Arguments.createMap()
+        paymentInfo.putString("paymentMethod", parsePaymentMethod(text))
+        paymentInfo.putString("cardType", parseCardType(text))
+        paymentInfo.putString("cardLast4", parseCardLast4(text))
+        paymentInfo.putString("changeAmount", parseChangeAmount(text))
+        paymentInfo.putString("tenderedAmount", parseTenderedAmount(text))
+        
+        // Parse receipt metadata
+        val receiptMetadata = Arguments.createMap()
+        receiptMetadata.putString("receiptNumber", parseReceiptNumber(text))
+        receiptMetadata.putString("transactionId", parseTransactionId(text))
+        receiptMetadata.putString("batchNumber", parseBatchNumber(text))
+        receiptMetadata.putString("timestamp", parseTimestamp(text))
+        receiptMetadata.putString("currency", parseCurrency(text))
+        receiptMetadata.putString("locale", "en-ZA")
+        
+        // Build final result
+        result.putString("merchant", merchant.ifEmpty { "Unknown Merchant" })
+        result.putString("total", total.ifEmpty { "$0.00" })
+        result.putString("date", date.ifEmpty { getCurrentDate() })
+        result.putArray("items", items)
+        result.putString("rawText", text)
+        result.putDouble("confidence", 0.8)
+        result.putMap("storeDetails", storeDetails)
+        result.putMap("taxInfo", taxInfo)
+        result.putMap("paymentInfo", paymentInfo)
+        result.putMap("receiptMetadata", receiptMetadata)
+        
+        return result
+    }
+    
+    private fun parseMerchant(lines: List<String>): String {
         for (i in 0 until minOf(3, lines.size)) {
             val line = lines[i].trim()
             if (line.isNotEmpty() && !isNumeric(line) && !isDate(line)) {
-                merchant = line
-                break
+                return line
             }
         }
-        
-        // Parse total amount
+        return ""
+    }
+    
+    private fun parseTotal(text: String, lines: List<String>): String {
         val totalPatterns = listOf(
             Pattern.compile("(?i)total[:\\s]*\\$?([0-9]+\\.?[0-9]*)"),
             Pattern.compile("(?i)amount[:\\s]*\\$?([0-9]+\\.?[0-9]*)"),
-            Pattern.compile("\\$([0-9]+\\.[0-9]{2})(?!.*\\$[0-9])"), // Last dollar amount
+            Pattern.compile("\\$([0-9]+\\.[0-9]{2})(?!.*\\$[0-9])")
         )
         
         for (line in lines) {
             for (pattern in totalPatterns) {
                 val matcher = pattern.matcher(line)
                 if (matcher.find()) {
-                    total = "$" + matcher.group(1)
-                    break
+                    return "$" + matcher.group(1)
                 }
             }
-            if (total.isNotEmpty()) break
         }
-        
-        // Parse date
+        return ""
+    }
+    
+    private fun parseDate(text: String, lines: List<String>): String {
         val datePatterns = listOf(
             Pattern.compile("([0-9]{1,2})[/\\-]([0-9]{1,2})[/\\-]([0-9]{2,4})"),
-            Pattern.compile("([0-9]{2,4})[/\\-]([0-9]{1,2})[/\\-]([0-9]{1,2})"),
+            Pattern.compile("([0-9]{2,4})[/\\-]([0-9]{1,2})[/\\-]([0-9]{1,2})")
         )
         
         for (line in lines) {
             for (pattern in datePatterns) {
                 val matcher = pattern.matcher(line)
                 if (matcher.find()) {
-                    date = matcher.group(0) ?: ""
+                    return matcher.group(0) ?: ""
+                }
+            }
+        }
+        return ""
+    }
+    
+    private fun parseItemsEnhanced(text: String, lines: List<String>): WritableArray {
+        val items = Arguments.createArray()
+        val itemPatterns = listOf(
+            Pattern.compile("(\\d+\\.?\\d*)\\s+([^$\\d]+?)\\s+\\$?(\\d+\\.?\\d{2})"), // Qty Item Price
+            Pattern.compile("([^$\\d]+?)\\s+(\\d+\\.?\\d*)\\s*x\\s*\\$?(\\d+\\.?\\d{2})"), // Item Qty x Price
+            Pattern.compile("([^$\\d]*?)\\s*\\.{2,}\\s*\\$?(\\d+\\.?\\d{2})"), // Item ... Price
+            Pattern.compile("([^$\\d]+?)\\s+\\$?(\\d+\\.?\\d{2})") // Item Price
+        )
+        
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (shouldSkipLine(trimmed)) continue
+            
+            for ((index, pattern) in itemPatterns.withIndex()) {
+                val matcher = pattern.matcher(trimmed)
+                if (matcher.find()) {
+                    val item = Arguments.createMap()
+                    
+                    when (index) {
+                        0 -> { // Qty Item Price
+                            item.putString("quantity", matcher.group(1))
+                            item.putString("name", cleanItemName(matcher.group(2) ?: ""))
+                            item.putString("price", "$" + matcher.group(3))
+                        }
+                        1 -> { // Item Qty x Price
+                            item.putString("name", cleanItemName(matcher.group(1) ?: ""))
+                            item.putString("quantity", matcher.group(2))
+                            item.putString("price", "$" + matcher.group(3))
+                        }
+                        else -> { // Item ... Price or Item Price
+                            item.putString("name", cleanItemName(matcher.group(1) ?: ""))
+                            item.putString("price", "$" + matcher.group(2))
+                        }
+                    }
+                    
+                    val itemName = item.getString("name") ?: ""
+                    if (itemName.isNotEmpty() && !isLikelyNotItem(itemName)) {
+                        items.pushMap(item)
+                    }
                     break
                 }
             }
-            if (date.isNotEmpty()) break
         }
         
-        // Parse items (lines with price patterns)
-        val itemPattern = Pattern.compile("(.+?)\\s+\\$?([0-9]+\\.?[0-9]*)")
-        for (line in lines) {
-            val matcher = itemPattern.matcher(line.trim())
+        return items
+    }
+    
+    private fun shouldSkipLine(line: String): Boolean {
+        val skipPatterns = listOf(
+            "(?i)^(subtotal|total|tax|discount|cash|credit|debit|change)",
+            "(?i)^(thank you|receipt|store|address|phone)",
+            "^\\d{4}-\\d{2}-\\d{2}",
+            "^\\*{3,}",
+            "^-{3,}"
+        )
+        
+        return skipPatterns.any { Pattern.compile(it).matcher(line).find() } || line.length < 2
+    }
+    
+    private fun isLikelyNotItem(name: String): Boolean {
+        val notItemPatterns = listOf(
+            "(?i)^(qty|quantity|price|total|tax|disc|discount)$",
+            "^\\d+$",
+            "^[a-z]$"
+        )
+        
+        return notItemPatterns.any { Pattern.compile(it).matcher(name).find() }
+    }
+    
+    private fun cleanItemName(name: String): String {
+        return name.replace("[^\\w\\s&'-]".toRegex(), "")
+                  .replace("\\s+".toRegex(), " ")
+                  .trim()
+                  .take(100)
+    }
+    
+    // Enhanced parsing methods
+    private fun parseAddress(text: String): String {
+        val addressPatterns = listOf(
+            Pattern.compile("(\\d+\\s+[A-Za-z\\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln)[A-Za-z\\s,\\d]*)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(P\\.?O\\.?\\s*Box\\s*\\d+[A-Za-z\\s,]*)", Pattern.CASE_INSENSITIVE)
+        )
+        
+        for (pattern in addressPatterns) {
+            val matcher = pattern.matcher(text)
             if (matcher.find()) {
-                val itemName = matcher.group(1)?.trim() ?: ""
-                val itemPrice = "$" + (matcher.group(2) ?: "")
-                
-                if (itemName.isNotEmpty() && !itemName.contains("total", true) && 
-                    !itemName.contains("tax", true) && !itemName.contains("subtotal", true)) {
-                    val item = Arguments.createMap()
-                    item.putString("name", itemName)
-                    item.putString("price", itemPrice)
-                    items.pushMap(item)
-                }
+                return matcher.group(1) ?: ""
             }
         }
+        return ""
+    }
+    
+    private fun parsePhone(text: String): String {
+        val phonePatterns = listOf(
+            Pattern.compile("(\\+?\\d{1,3}[-\\.\\s]?\\(?\\d{3}\\)?[-\\.\\s]?\\d{3}[-\\.\\s]?\\d{4})"),
+            Pattern.compile("(\\d{3}[-\\.\\s]?\\d{3}[-\\.\\s]?\\d{4})"),
+            Pattern.compile("(\\(\\d{3}\\)\\s?\\d{3}[-\\.\\s]?\\d{4})")
+        )
         
-        // Build result
-        result.putString("merchant", merchant.ifEmpty { "Unknown Merchant" })
-        result.putString("total", total.ifEmpty { "$0.00" })
-        result.putString("date", date.ifEmpty { getCurrentDate() })
-        result.putArray("items", items)
-        result.putString("rawText", text)
-        result.putDouble("confidence", 0.8) // ML Kit confidence approximation
+        for (pattern in phonePatterns) {
+            val matcher = pattern.matcher(text)
+            if (matcher.find()) {
+                return matcher.group(1) ?: ""
+            }
+        }
+        return ""
+    }
+    
+    private fun parseEmail(text: String): String {
+        val emailPattern = Pattern.compile("([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})")
+        val matcher = emailPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) ?: "" else ""
+    }
+    
+    private fun parseStoreId(text: String): String {
+        val storeIdPattern = Pattern.compile("(?:store|shop|location)[\\s#:]*(\\d+)", Pattern.CASE_INSENSITIVE)
+        val matcher = storeIdPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) ?: "" else ""
+    }
+    
+    private fun parseCashierName(text: String): String {
+        val cashierPattern = Pattern.compile("(?:cashier|served by|attendant)[\\s:]*([A-Za-z]+\\s?[A-Za-z]?\\.?)", Pattern.CASE_INSENSITIVE)
+        val matcher = cashierPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1)?.trim() ?: "" else ""
+    }
+    
+    private fun parseRegisterNumber(text: String): String {
+        val registerPattern = Pattern.compile("(?:register|reg|till)[\\s#:]*(\\d+)", Pattern.CASE_INSENSITIVE)
+        val matcher = registerPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) ?: "" else ""
+    }
+    
+    private fun parseTaxAmount(text: String): String {
+        val taxPattern = Pattern.compile("(?:tax|sales tax|st)[:\\s]*\\$?(\\d+\\.?\\d*)", Pattern.CASE_INSENSITIVE)
+        val matcher = taxPattern.matcher(text)
+        return if (matcher.find()) "$" + matcher.group(1) else ""
+    }
+    
+    private fun parseTaxRate(text: String): String {
+        val taxRatePattern = Pattern.compile("(?:tax|vat)[\\s:]*(\\d+\\.?\\d*)%", Pattern.CASE_INSENSITIVE)
+        val matcher = taxRatePattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) + "%" else ""
+    }
+    
+    private fun parseVATAmount(text: String): String {
+        val vatPattern = Pattern.compile("(?:vat|value added tax)[:\\s]*\\$?(\\d+\\.?\\d*)", Pattern.CASE_INSENSITIVE)
+        val matcher = vatPattern.matcher(text)
+        return if (matcher.find()) "$" + matcher.group(1) else parseTaxAmount(text)
+    }
+    
+    private fun parseVATRate(text: String): String {
+        val vatRatePattern = Pattern.compile("(?:vat)[\\s:]*(\\d+\\.?\\d*)%", Pattern.CASE_INSENSITIVE)
+        val matcher = vatRatePattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) + "%" else ""
+    }
+    
+    private fun parseSubtotal(text: String): String {
+        val subtotalPattern = Pattern.compile("(?:subtotal|sub total)[:\\s]*\\$?(\\d+\\.?\\d*)", Pattern.CASE_INSENSITIVE)
+        val matcher = subtotalPattern.matcher(text)
+        return if (matcher.find()) "$" + matcher.group(1) else ""
+    }
+    
+    private fun parseTaxableAmount(text: String): String {
+        val taxablePattern = Pattern.compile("(?:taxable)[:\\s]*\\$?(\\d+\\.?\\d*)", Pattern.CASE_INSENSITIVE)
+        val matcher = taxablePattern.matcher(text)
+        return if (matcher.find()) "$" + matcher.group(1) else ""
+    }
+    
+    private fun parseExemptAmount(text: String): String {
+        val exemptPattern = Pattern.compile("(?:exempt|tax free)[:\\s]*\\$?(\\d+\\.?\\d*)", Pattern.CASE_INSENSITIVE)
+        val matcher = exemptPattern.matcher(text)
+        return if (matcher.find()) "$" + matcher.group(1) else ""
+    }
+    
+    private fun parsePaymentMethod(text: String): String {
+        val paymentPattern = Pattern.compile("(cash|card|credit|debit|visa|mastercard|amex)", Pattern.CASE_INSENSITIVE)
+        val matcher = paymentPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1)?.replaceFirstChar { it.titlecase() } ?: "" else ""
+    }
+    
+    private fun parseCardType(text: String): String {
+        val cardTypes = listOf("visa", "mastercard", "amex", "discover", "american express")
+        val lowerText = text.lowercase()
         
-        return result
+        for (cardType in cardTypes) {
+            if (lowerText.contains(cardType)) {
+                return cardType.replaceFirstChar { it.titlecase() }
+            }
+        }
+        return ""
+    }
+    
+    private fun parseCardLast4(text: String): String {
+        val cardPattern = Pattern.compile("(?:\\*{4,}|\\*+)(\\d{4})")
+        val matcher = cardPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) ?: "" else ""
+    }
+    
+    private fun parseChangeAmount(text: String): String {
+        val changePattern = Pattern.compile("(?:change)[:\\s]*\\$?(\\d+\\.?\\d*)", Pattern.CASE_INSENSITIVE)
+        val matcher = changePattern.matcher(text)
+        return if (matcher.find()) "$" + matcher.group(1) else ""
+    }
+    
+    private fun parseTenderedAmount(text: String): String {
+        val tenderedPattern = Pattern.compile("(?:tendered|given)[:\\s]*\\$?(\\d+\\.?\\d*)", Pattern.CASE_INSENSITIVE)
+        val matcher = tenderedPattern.matcher(text)
+        return if (matcher.find()) "$" + matcher.group(1) else ""
+    }
+    
+    private fun parseReceiptNumber(text: String): String {
+        val receiptPattern = Pattern.compile("(?:receipt|rcpt)[\\s#:]*(\\d+)", Pattern.CASE_INSENSITIVE)
+        val matcher = receiptPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) ?: "" else ""
+    }
+    
+    private fun parseTransactionId(text: String): String {
+        val transactionPattern = Pattern.compile("(?:transaction|trans|txn)[\\s#:]*([A-Z0-9]+)", Pattern.CASE_INSENSITIVE)
+        val matcher = transactionPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) ?: "" else ""
+    }
+    
+    private fun parseBatchNumber(text: String): String {
+        val batchPattern = Pattern.compile("(?:batch)[\\s#:]*(\\d+)", Pattern.CASE_INSENSITIVE)
+        val matcher = batchPattern.matcher(text)
+        return if (matcher.find()) matcher.group(1) ?: "" else ""
+    }
+    
+    private fun parseTimestamp(text: String): String {
+        val timePatterns = listOf(
+            Pattern.compile("(\\d{1,2}:\\d{2}:\\d{2})"),
+            Pattern.compile("(\\d{1,2}:\\d{2}\\s?[AP]M)", Pattern.CASE_INSENSITIVE)
+        )
+        
+        for (pattern in timePatterns) {
+            val matcher = pattern.matcher(text)
+            if (matcher.find()) {
+                return matcher.group(1) ?: ""
+            }
+        }
+        return ""
+    }
+    
+    private fun parseCurrency(text: String): String {
+        return when {
+            text.contains("ZAR") || text.contains("R ") -> "ZAR"
+            text.contains("USD") || text.contains("$") -> "USD"
+            text.contains("EUR") || text.contains("€") -> "EUR"
+            text.contains("GBP") || text.contains("£") -> "GBP"
+            else -> "ZAR" // Default for South African context
+        }
     }
     
     private fun isNumeric(str: String): Boolean {

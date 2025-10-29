@@ -2,21 +2,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import {
-  AddCategoryModal,
-  CategoryBudgetItem,
-  CategoryDropdown
+    AddCategoryModal,
+    CategoryBudgetItem,
+    CategoryDropdown
 } from '../../../assets/componets/budget';
 import { createBudget, listBudgets } from '../../../utils/CRUD/budgetcrud';
 import { createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
@@ -53,7 +53,7 @@ export default function CreateBudget() {
   };
 
   const formatMonthForDisplay = (date: Date) => {
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    return date.toLocaleDateString('eu-ZA', { year: 'numeric', month: 'long' });
   };
 
   const handleMonthChange = (year: number, month: number) => {
@@ -72,7 +72,7 @@ export default function CreateBudget() {
       options.push({
         year: date.getFullYear(),
         month: date.getMonth(),
-        display: date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+        display: date.toLocaleDateString('eu-ZA', { year: 'numeric', month: 'long' }),
         value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       });
     }
@@ -82,7 +82,7 @@ export default function CreateBudget() {
 
   const handleCategoryToggle = async (categoryId: string) => {
     if (selectedCategoryIds.includes(categoryId)) {
-      // Remove category
+      
       setSelectedCategoryIds(prev => prev.filter(id => id !== categoryId));
       setCategoryBudgets(prev => prev.filter(cb => cb.categoryId !== categoryId));
     } else {

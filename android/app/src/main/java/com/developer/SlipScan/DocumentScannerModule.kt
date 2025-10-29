@@ -7,10 +7,17 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 
-class DocumentScannerModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+class DocumentScannerModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext), ActivityEventListener {
 
     companion object {
         private const val NAME = "DocumentScannerModule"
+        private const val DOCUMENT_SCANNER_REQUEST_CODE = 12345
+    }
+
+    private var scannerPromise: Promise? = null
+
+    init {
+        reactContext.addActivityEventListener(this)
     }
 
     override fun getName(): String = NAME
@@ -57,20 +64,25 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) : ReactContex
             val activity = reactApplicationContext.currentActivity
             
             if (activity != null) {
+                // Store the promise to resolve it later in onActivityResult
+                scannerPromise = promise
+                
                 scanner.getStartScanIntent(activity)
                     .addOnSuccessListener { intentSender ->
                         try {
                             activity.startIntentSenderForResult(
                                 intentSender,
-                                123, // request code
+                                DOCUMENT_SCANNER_REQUEST_CODE,
                                 null, 0, 0, 0
                             )
-                            promise.resolve("Scanner started successfully")
+                            // Don't resolve promise here - wait for onActivityResult
                         } catch (e: Exception) {
+                            scannerPromise = null
                             promise.reject("SCANNER_ERROR", "Failed to start scanner: ${e.message}")
                         }
                     }
                     .addOnFailureListener { e ->
+                        scannerPromise = null
                         promise.reject("SCANNER_INIT_ERROR", "Failed to initialize scanner: ${e.message}")
                     }
             } else {
@@ -83,6 +95,53 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) : ReactContex
     }
 
 
+
+    override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == DOCUMENT_SCANNER_REQUEST_CODE && scannerPromise != null) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                val result = GmsDocumentScanningResult.fromActivityResultIntent(data)
+                
+                if (result != null) {
+                    try {
+                        val resultMap = Arguments.createMap()
+                        val pagesArray = Arguments.createArray()
+                        
+                        // Add pages
+                        result.pages?.forEach { page ->
+                            val pageMap = Arguments.createMap()
+                            pageMap.putString("imageUri", page.imageUri.toString())
+                            pagesArray.pushMap(pageMap)
+                        }
+                        
+                        resultMap.putArray("pages", pagesArray)
+                        resultMap.putBoolean("success", true)
+                        
+                        // Add PDF if available
+                        result.pdf?.let { pdf ->
+                            resultMap.putString("pdfUri", pdf.uri.toString())
+                            resultMap.putInt("pdfPageCount", pdf.pageCount)
+                        }
+                        
+                        scannerPromise?.resolve(resultMap)
+                    } catch (e: Exception) {
+                        scannerPromise?.reject("RESULT_PARSING_ERROR", "Failed to parse scanner result: ${e.message}")
+                    }
+                } else {
+                    scannerPromise?.reject("NO_RESULT", "No scanning result received")
+                }
+            } else if (resultCode == Activity.RESULT_CANCELED) {
+                scannerPromise?.reject("USER_CANCELED", "User canceled the scanning")
+            } else {
+                scannerPromise?.reject("SCANNER_ERROR", "Scanner failed with result code: $resultCode")
+            }
+            
+            scannerPromise = null
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        // Not needed for document scanner
+    }
 
     @ReactMethod
     fun addListener(eventName: String?) {

@@ -1,27 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  RefreshControl,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  View
+    Alert,
+    Animated,
+    RefreshControl,
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    View
 } from 'react-native';
 import {
-  AmountRangeFilter,
-  FilterButtons,
-  ReceiptList,
-  SearchBar,
-  type SearchFilter,
+    AmountRangeFilter,
+    FilterButtons,
+    ReceiptList,
+    SearchBar,
+    type SearchFilter,
 } from '../../assets/componets/search';
 import {
-  getReceiptsByCategory,
-  getReceiptsByMerchant,
-  getReceiptsByTag,
-  getReceiptsInAmountRange,
-  listReceipts,
-  searchReceiptsByOCR
+    getReceiptsByCategory,
+    getReceiptsByMerchant,
+    getReceiptsByTag,
+    getReceiptsInAmountRange,
+    listReceipts,
+    searchReceiptsByOCR
 } from '../../utils/CRUD/receiptcrud';
 import { Receipt } from '../../utils/localdb';
 
@@ -132,7 +132,7 @@ export default function SearchPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$${amount.toLocaleString('eu-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const stats = getSearchStats();

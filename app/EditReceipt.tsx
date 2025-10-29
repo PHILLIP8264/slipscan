@@ -21,11 +21,57 @@ interface EditableReceiptData {
   merchant: string;
   total: string;
   date: string;
-  items: Array<{ name: string; price: string; id: string }>;
+  items: Array<{ 
+    name: string; 
+    price: string; 
+    id: string;
+    quantity?: string;
+    category?: string;
+    subcategory?: string;
+    categoryConfidence?: number;
+  }>;
   category: string;
   notes: string;
   paymentMethod: string;
   tax: string;
+  // Enhanced store details
+  storeDetails: {
+    name: string;
+    address: string;
+    phone: string;
+    email?: string;
+    website?: string;
+    storeId?: string;
+    cashierName?: string;
+    registerNumber?: string;
+  };
+  // Enhanced tax information
+  taxInfo: {
+    taxAmount: string;
+    taxRate?: string;
+    vatAmount?: string;
+    vatRate?: string;
+    subtotal: string;
+    taxableAmount?: string;
+    exemptAmount?: string;
+  };
+  // Payment information
+  paymentInfo: {
+    paymentMethod?: string;
+    cardType?: string;
+    cardLast4?: string;
+    changeAmount?: string;
+    tenderedAmount?: string;
+  };
+  // Receipt metadata
+  receiptMetadata: {
+    receiptNumber?: string;
+    transactionId?: string;
+    batchNumber?: string;
+    timestamp?: string;
+    currency?: string;
+    locale?: string;
+  };
 }
 
 export default function EditReceipt() {
@@ -49,7 +95,15 @@ export default function EditReceipt() {
   const initializeData = () => {
     try {
       if (params.receiptData && params.imageUri) {
-        const parsedData = JSON.parse(params.receiptData as string);
+        // params are passed via query string and URI-encoded; decode before parsing
+        let decoded: string;
+        try {
+          decoded = decodeURIComponent(params.receiptData as string);
+        } catch (uriError) {
+          console.warn('Failed to decode URI, using raw data:', uriError);
+          decoded = params.receiptData as string;
+        }
+        const parsedData = JSON.parse(decoded);
 
         // Transform OCR data to editable format
         const editableData: EditableReceiptData = {
@@ -61,14 +115,55 @@ export default function EditReceipt() {
               ...item,
               id: `item_${index}`,
             })) || [],
-          category: "8", // Default to "Other"
+          category: parsedData.category || "Other",
           notes: "",
-          paymentMethod: "Card",
-          tax: "0.00",
+          paymentMethod: parsedData.paymentInfo?.paymentMethod || "Card",
+          tax: parsedData.taxInfo?.taxAmount || parsedData.taxAmount || "0.00",
+          storeDetails: {
+            name: parsedData.storeDetails?.name || parsedData.merchant || "",
+            address: parsedData.storeDetails?.address || "",
+            phone: parsedData.storeDetails?.phone || "",
+            email: parsedData.storeDetails?.email || "",
+            website: parsedData.storeDetails?.website || "",
+            storeId: parsedData.storeDetails?.storeId || "",
+            cashierName: parsedData.storeDetails?.cashierName || "",
+            registerNumber: parsedData.storeDetails?.registerNumber || ""
+          },
+          taxInfo: {
+            taxAmount: parsedData.taxInfo?.taxAmount || parsedData.taxAmount || "0.00",
+            taxRate: parsedData.taxInfo?.taxRate || "",
+            vatAmount: parsedData.taxInfo?.vatAmount || "",
+            vatRate: parsedData.taxInfo?.vatRate || "",
+            subtotal: parsedData.taxInfo?.subtotal || parsedData.subtotal || "0.00",
+            taxableAmount: parsedData.taxInfo?.taxableAmount || "",
+            exemptAmount: parsedData.taxInfo?.exemptAmount || ""
+          },
+          paymentInfo: {
+            paymentMethod: parsedData.paymentInfo?.paymentMethod || "",
+            cardType: parsedData.paymentInfo?.cardType || "",
+            cardLast4: parsedData.paymentInfo?.cardLast4 || "",
+            changeAmount: parsedData.paymentInfo?.changeAmount || "",
+            tenderedAmount: parsedData.paymentInfo?.tenderedAmount || ""
+          },
+          receiptMetadata: {
+            receiptNumber: parsedData.receiptMetadata?.receiptNumber || "",
+            transactionId: parsedData.receiptMetadata?.transactionId || "",
+            batchNumber: parsedData.receiptMetadata?.batchNumber || "",
+            timestamp: parsedData.receiptMetadata?.timestamp || "",
+            currency: parsedData.receiptMetadata?.currency || "ZAR",
+            locale: parsedData.receiptMetadata?.locale || "en-ZA"
+          }
         };
 
         setReceiptData(editableData);
-        setOriginalImageUri(params.imageUri as string);
+        
+        // Safely decode image URI
+        try {
+          setOriginalImageUri(decodeURIComponent(params.imageUri as string));
+        } catch (uriError) {
+          console.warn('Failed to decode image URI, using raw URI:', uriError);
+          setOriginalImageUri(params.imageUri as string);
+        }
       }
     } catch (error) {
       console.error("Error parsing receipt data:", error);
@@ -215,6 +310,10 @@ export default function EditReceipt() {
         items: receiptData.items.filter((item) => item.name.trim() !== ""),
         rawText: `Edited Receipt - ${receiptData.merchant}`,
         confidence: 1.0, // User verified data
+        storeDetails: receiptData.storeDetails,
+        taxInfo: receiptData.taxInfo,
+        paymentInfo: receiptData.paymentInfo,
+        receiptMetadata: receiptData.receiptMetadata
       };
 
       // Save to storage
@@ -468,6 +567,354 @@ export default function EditReceipt() {
             />
           </View>
         </View>
+
+        {/* Store Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Store Details</Text>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Store Address</Text>
+            <TextInput
+              style={[styles.input, styles.addressInput]}
+              value={receiptData.storeDetails.address}
+              onChangeText={(value) => {
+                setReceiptData({
+                  ...receiptData,
+                  storeDetails: { ...receiptData.storeDetails, address: value }
+                });
+              }}
+              placeholder="Enter store address"
+              multiline
+              numberOfLines={2}
+            />
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.storeDetails.phone}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    storeDetails: { ...receiptData.storeDetails, phone: value }
+                  });
+                }}
+                placeholder="Phone number"
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.flex1, styles.marginLeft]}>
+              <Text style={styles.label}>Store ID</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.storeDetails.storeId || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    storeDetails: { ...receiptData.storeDetails, storeId: value }
+                  });
+                }}
+                placeholder="Store ID"
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Cashier Name</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.storeDetails.cashierName || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    storeDetails: { ...receiptData.storeDetails, cashierName: value }
+                  });
+                }}
+                placeholder="Cashier name"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.flex1, styles.marginLeft]}>
+              <Text style={styles.label}>Register #</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.storeDetails.registerNumber || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    storeDetails: { ...receiptData.storeDetails, registerNumber: value }
+                  });
+                }}
+                placeholder="Register number"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={receiptData.storeDetails.email || ""}
+              onChangeText={(value) => {
+                setReceiptData({
+                  ...receiptData,
+                  storeDetails: { ...receiptData.storeDetails, email: value }
+                });
+              }}
+              placeholder="Store email"
+              keyboardType="email-address"
+            />
+          </View>
+        </View>
+
+        {/* Tax Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tax Information</Text>
+          
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Subtotal</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.taxInfo.subtotal}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    taxInfo: { ...receiptData.taxInfo, subtotal: value }
+                  });
+                }}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.flex1, styles.marginLeft]}>
+              <Text style={styles.label}>Tax Amount</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.taxInfo.taxAmount}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    taxInfo: { ...receiptData.taxInfo, taxAmount: value }
+                  });
+                }}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Tax Rate</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.taxInfo.taxRate || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    taxInfo: { ...receiptData.taxInfo, taxRate: value }
+                  });
+                }}
+                placeholder="15%"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.flex1, styles.marginLeft]}>
+              <Text style={styles.label}>VAT Amount</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.taxInfo.vatAmount || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    taxInfo: { ...receiptData.taxInfo, vatAmount: value }
+                  });
+                }}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Payment Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Information</Text>
+          
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Card Type</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.paymentInfo.cardType || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    paymentInfo: { ...receiptData.paymentInfo, cardType: value }
+                  });
+                }}
+                placeholder="VISA, Mastercard, etc."
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.flex1, styles.marginLeft]}>
+              <Text style={styles.label}>Card Last 4</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.paymentInfo.cardLast4 || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    paymentInfo: { ...receiptData.paymentInfo, cardLast4: value }
+                  });
+                }}
+                placeholder="1234"
+                maxLength={4}
+                keyboardType="number-pad"
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Change Amount</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.paymentInfo.changeAmount || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    paymentInfo: { ...receiptData.paymentInfo, changeAmount: value }
+                  });
+                }}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.flex1, styles.marginLeft]}>
+              <Text style={styles.label}>Tendered Amount</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.paymentInfo.tenderedAmount || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    paymentInfo: { ...receiptData.paymentInfo, tenderedAmount: value }
+                  });
+                }}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Receipt Metadata */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Receipt Details</Text>
+          
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Receipt Number</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.receiptMetadata.receiptNumber || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    receiptMetadata: { ...receiptData.receiptMetadata, receiptNumber: value }
+                  });
+                }}
+                placeholder="Receipt #"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.flex1, styles.marginLeft]}>
+              <Text style={styles.label}>Transaction ID</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.receiptMetadata.transactionId || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    receiptMetadata: { ...receiptData.receiptMetadata, transactionId: value }
+                  });
+                }}
+                placeholder="Transaction ID"
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Time</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.receiptMetadata.timestamp || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    receiptMetadata: { ...receiptData.receiptMetadata, timestamp: value }
+                  });
+                }}
+                placeholder="HH:MM"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.flex1, styles.marginLeft]}>
+              <Text style={styles.label}>Currency</Text>
+              <TextInput
+                style={styles.input}
+                value={receiptData.receiptMetadata.currency || ""}
+                onChangeText={(value) => {
+                  setReceiptData({
+                    ...receiptData,
+                    receiptMetadata: { ...receiptData.receiptMetadata, currency: value }
+                  });
+                }}
+                placeholder="ZAR"
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Smart Categorization Display */}
+        {receiptData.items.some(item => item.category) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🤖 Smart Categorization</Text>
+            <Text style={styles.categorizationNote}>
+              Items have been automatically categorized based on merchant context and item analysis
+            </Text>
+            
+            {receiptData.items
+              .filter(item => item.category)
+              .map((item, index) => (
+              <View key={`cat-${index}`} style={styles.categorizationItem}>
+                <View style={styles.categorizationItemHeader}>
+                  <Text style={styles.categorizationItemName}>{item.name}</Text>
+                  <View style={styles.categorizationBadge}>
+                    <Text style={styles.categorizationBadgeText}>
+                      {item.category}
+                      {item.subcategory && ` • ${item.subcategory}`}
+                    </Text>
+                  </View>
+                </View>
+                {item.categoryConfidence && (
+                  <Text style={styles.categorizationConfidence}>
+                    Confidence: {Math.round(item.categoryConfidence * 100)}%
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* Save Button */}
@@ -706,5 +1153,54 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     marginLeft: 12,
+  },
+  // Enhanced styles for new sections
+  addressInput: {
+    height: 60,
+    textAlignVertical: "top",
+  },
+  categorizationNote: {
+    fontSize: 14,
+    color: "#666",
+    fontStyle: "italic",
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  categorizationItem: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#e1e5e9",
+  },
+  categorizationItemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  categorizationItemName: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    flex: 1,
+    marginRight: 8,
+  },
+  categorizationBadge: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  categorizationBadgeText: {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: "500",
+  },
+  categorizationConfidence: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
   },
 });

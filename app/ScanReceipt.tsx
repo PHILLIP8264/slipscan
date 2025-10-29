@@ -39,38 +39,27 @@ export default function ScanReceipt() {
       console.log("Scan successful, pages:", result.pages?.length || 0);
       setScanResult(result);
 
-      // Show different message based on processing method
-      let processingMessage = "\nProcessing available";
-      if (result.receiptData) {
-        let processingType = "OCR";
-        
-        // Determine processing method
-        if ("processingMethod" in result.receiptData) {
-          processingType = result.receiptData.processingMethod === "google-vision" ? "Google Vision" : "OCR";
+      // Navigate immediately to EditReceiptModern with the scanned image
+      if (result.pages && result.pages.length > 0) {
+        try {
+          const receiptDataParam = result.receiptData 
+            ? encodeURIComponent(JSON.stringify(result.receiptData))
+            : encodeURIComponent(JSON.stringify({}));
+          const imageUriParam = encodeURIComponent(result.pages[0].imageUri || "");
+          
+          // Navigate immediately - processing will happen on EditReceiptModern page
+          router.push(`/EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
+        } catch (err) {
+          console.error('Failed to navigate to EditReceiptModern:', err);
+          router.push('/EditReceiptModern');
         }
-        
-        processingMessage = `\n${processingType} Processing:\nMerchant: ${
-          result.receiptData.merchant
-        }\nTotal: $${result.receiptData.total}\nConfidence: ${Math.round(
-          result.receiptData.confidence * 100
-        )}%`;
-
-        // Add method details if available
-        if ("processingMethod" in result.receiptData) {
-          processingMessage += `\nMethod: ${result.receiptData.processingMethod}`;
-        }
+      } else {
+        Alert.alert(
+          "Scan Failed",
+          "No pages were scanned successfully. Please try again.",
+          [{ text: "Try Again", onPress: () => setScanResult(null) }]
+        );
       }
-
-      Alert.alert(
-        "Document Scanned Successfully! 📸",
-        `${result.pages.length} page(s) captured${
-          result.pdfUri ? "\nPDF generated" : ""
-        }${processingMessage}`,
-        [
-          { text: "Scan Another", onPress: () => setScanResult(null) },
-          { text: "Edit & Save", onPress: () => processReceipt(result) },
-        ]
-      );
     } catch (e: any) {
       console.error("Scan failed:", e);
       console.error("Stack trace:", e.stack);
@@ -109,19 +98,15 @@ export default function ScanReceipt() {
       }
 
       if (receiptData) {
-        // Show parsed receipt data
-        const itemsText = receiptData.items
-          .map((item: any) => `• ${item.name}: $${item.price}`)
-          .join("\n");
-
-        // Navigate to edit screen with the extracted data
-        router.push({
-          pathname: "/EditReceipt",
-          params: {
-            receiptData: JSON.stringify(receiptData),
-            imageUri: result.pages[0].imageUri,
-          },
-        });
+        // Navigate to modern edit screen with the extracted data
+        try {
+          const receiptDataParam = encodeURIComponent(JSON.stringify(receiptData));
+          const imageUriParam = encodeURIComponent(result.pages[0].imageUri);
+          router.push(`/EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
+        } catch (err) {
+          console.error('Failed to serialize receipt data:', err);
+          router.push('/EditReceiptModern');
+        }
       } else {
         Alert.alert(
           "Processing Failed",
@@ -143,21 +128,23 @@ export default function ScanReceipt() {
           {
             text: "Save Image Only",
             onPress: () => {
-              // Navigate to edit screen with minimal data
-              router.push({
-                pathname: "/EditReceipt",
-                params: {
-                  receiptData: JSON.stringify({
-                    merchant: "Unknown",
-                    total: "0.00",
-                    date: new Date().toLocaleDateString(),
-                    items: [],
-                    rawText: "Processing failed",
-                    confidence: 0.1,
-                  }),
-                  imageUri: result.pages[0]?.imageUri || "",
-                },
-              });
+              // Navigate to modern edit screen with minimal data
+              try {
+                const minimalData = {
+                  merchant: "Unknown",
+                  total: "0.00",
+                  date: new Date().toLocaleDateString(),
+                  items: [],
+                  rawText: "Processing failed",
+                  confidence: 0.1,
+                };
+                const receiptDataParam = encodeURIComponent(JSON.stringify(minimalData));
+                const imageUriParam = encodeURIComponent(result.pages[0]?.imageUri || "");
+                router.push(`/EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
+              } catch (err) {
+                console.error('Failed to navigate to EditReceiptModern:', err);
+                router.push('/EditReceiptModern');
+              }
             },
           },
         ]

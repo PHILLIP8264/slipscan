@@ -47,15 +47,44 @@ export interface Budget {
 
 export interface Receipt {
   _id: string;
+  // Merchant Information
   merchant: string;
+  merchantPhone?: string;
+  merchantAddress?: string;
+  
+  // Transaction Details
   amount: number;
-  category: string;
+  tax?: number;
+  subtotal?: number;
   date: Date;
+  
+  // Line Items
+  items: ReceiptItem[];
+  
+  // Legacy fields
+  category?: string; // Keep for backward compatibility
   tags: string[];
+  
+  // Media & Processing
   imageUrl?: string;
   ocrText: string;
+  
+  // Metadata
+  currency: string; // e.g., "ZAR"
+  locale: string;   // e.g., "en-ZA"
+  confidence: number;
+  
+  // Timestamps
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ReceiptItem {
+  name: string;
+  quantity: number;
+  itemPrice: number;  // Unit price
+  lineTotal: number;  // Total for this line item
+  confidence: number;
 }
 
 export interface User {
@@ -204,6 +233,44 @@ export class NoSQLDB {
   }
 }
 
+// Conversion helper to transform ProcessedReceipt to local Receipt format
+export function convertProcessedReceiptToLocal(processedReceipt: any, imageUrl?: string): Omit<Receipt, "_id" | "createdAt" | "updatedAt"> {
+  return {
+    // Merchant info
+    merchant: processedReceipt.merchant?.name || processedReceipt.merchantInfo?.name || 'Unknown Merchant',
+    merchantPhone: processedReceipt.merchant?.phone_number || processedReceipt.merchantInfo?.phone_number,
+    merchantAddress: typeof processedReceipt.merchant?.address === 'string' 
+      ? processedReceipt.merchant.address 
+      : processedReceipt.merchantInfo?.address,
+    
+    // Transaction totals
+    amount: processedReceipt.totals?.total || 0,
+    tax: processedReceipt.totals?.tax || 0,
+    subtotal: processedReceipt.totals?.subtotal,
+    
+    // Date
+    date: new Date(processedReceipt.transaction?.date || processedReceipt.transactionInfo?.date || new Date()),
+    
+    // Line items conversion
+    items: (processedReceipt.items || processedReceipt.lineItems || []).map((item: any) => ({
+      name: item.name || 'Unknown Item',
+      quantity: item.quantity || 1,
+      itemPrice: item.itemprice || item.unitPrice || item.totalPrice || 0,
+      lineTotal: item.linetotal || item.totalPrice || 0,
+      confidence: item.confidence || 0.5,
+    })),
+    
+    // Legacy and metadata
+    category: processedReceipt.overallCategory || undefined,
+    tags: processedReceipt.tags || [],
+    imageUrl: imageUrl || processedReceipt.originalImageUri,
+    ocrText: processedReceipt.rawText || '',
+    currency: processedReceipt.metadata?.currency || 'ZAR',
+    locale: processedReceipt.metadata?.locale || 'en-ZA',
+    confidence: processedReceipt.confidence?.overall || 0.5,
+  };
+}
+
 // Helper functions for relationships (NoSQL style)
 export class RelationshipHelpers {
   // Get user with populated categories, budgets, and receipts
@@ -300,5 +367,15 @@ export class RelationshipHelpers {
     });
 
     return newReceipt;
+  }
+
+  // Add processed receipt directly to user (convenience method)
+  static async addProcessedReceiptToUser(
+    userId: string,
+    processedReceipt: any,
+    imageUrl?: string
+  ): Promise<Receipt | null> {
+    const localReceipt = convertProcessedReceiptToLocal(processedReceipt, imageUrl);
+    return this.addReceiptToUser(userId, localReceipt);
   }
 }

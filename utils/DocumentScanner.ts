@@ -1,10 +1,28 @@
-// ML Kit Document Scanner with auto edge detection and Google Vision processing
+// ML Kit Document Scanner with auto edge detection and modern receipt processing
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { Platform } from "react-native";
+import receiptProcessingService from "../services/ReceiptProcessingService";
+import { ProcessedReceipt } from "../types/receipt";
 import DocumentScannerNative from "../utils/DocumentScannerNative";
-import GoogleVisionService, { GoogleVisionReceiptData } from "../utils/GoogleVisionService";
 import OCRModule, { ReceiptData } from "../utils/OCRModule";
+
+// Legacy GoogleVisionService compatibility
+type GoogleVisionReceiptData = ReceiptData; // For backward compatibility
+
+// Legacy Google Vision Service compatibility layer
+const GoogleVisionService = {
+  processReceiptImage: async (imageUri: string): Promise<GoogleVisionReceiptData> => {
+    // This will call the modern service internally but return legacy format
+    const modernResult = await receiptProcessingService.processReceipt(imageUri);
+    
+    if (modernResult.success && modernResult.receipt) {
+      return convertToLegacyFormat(modernResult.receipt);
+    } else {
+      throw new Error('Google Vision processing failed: ' + modernResult.error);
+    }
+  }
+};
 
 export type ScannerOptions = {
   pageLimit?: number;
@@ -12,95 +30,122 @@ export type ScannerOptions = {
   jpeg?: boolean;
   pdf?: boolean;
   scannerMode?: "base" | "full";
-  useGoogleVision?: boolean; // Enable Google Vision API processing (highest accuracy)
+  useGoogleVision?: boolean;
+  userId?: string;
+  useModernProcessing?: boolean; // Flag to use new workflow
 };
 
 export type Page = { imageUri?: string };
+
 export type ScanResult = {
   pages: Page[];
   pdfUri?: string;
   pdfPageCount?: number;
-  receiptData?: ReceiptData | GoogleVisionReceiptData; // OCR or Google Vision processed receipt data
+  receiptData?: ReceiptData | GoogleVisionReceiptData;
+  // New fields for modern processing
+  processedReceipt?: ProcessedReceipt;
+  processingResult?: any;
 };
 
-const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
+const processDocumentImage = async (imageUri: string): Promise<string> => {
   try {
-    // Use ML Kit Document Scanner on Android
-    if (Platform.OS === "android") {
-      const options = {
-        pageLimit: opts?.pageLimit || 6,
-        allowGalleryImport: opts?.allowGalleryImport ?? true,
-        scannerMode: (opts?.scannerMode || "full") as "base" | "full",
-        resultFormat: (opts?.pdf ? "pdf" : "jpeg") as "pdf" | "jpeg",
-      };
-
-      const result = await DocumentScannerNative.startScanning(options);
-
-      // Transform native result to match expected format
-      const scanResult = {
-        pages: result.pages.map((page) => ({ imageUri: page.imageUri })),
-        pdfUri: result.pdfUri,
-        pdfPageCount: result.pdfPageCount,
-      };
-
-      // Process first page with Google Vision or OCR
-      if (result.pages.length > 0 && result.pages[0].imageUri) {
-        try {
-          let receiptData: ReceiptData | GoogleVisionReceiptData;
-
-          // Priority 1: Google Vision API (highest accuracy)
-          if (opts?.useGoogleVision) {
-            try {
-              receiptData = await GoogleVisionService.processReceiptImage(
-                result.pages[0].imageUri
-              );
-              console.log("Google Vision processing successful");
-            } catch (visionError) {
-              console.warn("Google Vision failed, falling back to OCR:", visionError);
-              receiptData = await OCRModule.parseReceipt(result.pages[0].imageUri);
-            }
-          }
-          // Priority 2: Traditional ML Kit OCR
-          else {
-            receiptData = await OCRModule.parseReceipt(result.pages[0].imageUri);
-          }
-
-          return { ...scanResult, receiptData };
-        } catch (processingError) {
-          console.warn("All receipt processing methods failed:", processingError);
-          // Return scan result without receipt data
-          return scanResult;
-        }
-      }
-
-      return scanResult;
-    } else {
-      // Fallback to camera-based scanning for iOS
-      return await fallbackCameraScanner(opts);
-    }
+    const manipulatedImage = await ImageManipulator.manipulateAsync(
+      imageUri,
+      [{ resize: { width: 1200 } }],
+      { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    return manipulatedImage.uri;
   } catch (error) {
-    console.error("ML Kit Scanner error:", error);
-    // Fallback to camera scanner if ML Kit fails
-    return await fallbackCameraScanner(opts);
+    console.warn("Image processing failed, using original:", error);
+    return imageUri;
   }
 };
 
-// Fallback camera scanner for iOS or when ML Kit fails
-const fallbackCameraScanner = async (
+/**
+ * Process receipt using the modern 5-step workflow
+ * 
+ * This provides the new comprehensive processing pipeline while maintaining 
+ * backward compatibility with the legacy interface.
+ */
+const processReceiptModern = async (
+  imageUri: string,
   opts?: ScannerOptions
-): Promise<ScanResult> => {
+): Promise<{ receiptData?: ReceiptData | GoogleVisionReceiptData; processedReceipt?: ProcessedReceipt; processingResult?: any }> => {
   try {
-    // Request camera permissions
+    console.log('🚀 Using modern receipt processing workflow...');
+    
+    // Process with the new comprehensive workflow
+    const processingResult = await receiptProcessingService.processReceipt(imageUri, opts?.userId);
+    
+    if (processingResult.success && processingResult.receipt) {
+      console.log('✅ Modern processing successful');
+      
+      // Convert to legacy format for backward compatibility
+      const legacyReceiptData = convertToLegacyFormat(processingResult.receipt);
+      
+      return {
+        receiptData: legacyReceiptData,
+        processedReceipt: processingResult.receipt,
+        processingResult,
+      };
+    } else {
+      console.warn('⚠️ Modern processing failed, falling back to legacy processing');
+      throw new Error(processingResult.error || 'Processing failed');
+    }
+  } catch (error) {
+    console.warn('❌ Modern processing error, falling back to legacy:', error);
+    throw error;
+  }
+};
+
+/**
+ * Convert ProcessedReceipt to legacy ReceiptData format for backward compatibility
+ */
+const convertToLegacyFormat = (processedReceipt: ProcessedReceipt): ReceiptData => {
+  return {
+    merchant: processedReceipt.merchant.name,
+    total: processedReceipt.totals.total.toFixed(2),
+    date: new Date(processedReceipt.transaction.date).toLocaleDateString(),
+    items: processedReceipt.items.map(item => ({
+      name: item.name,
+      price: item.totalPrice.toFixed(2),
+      quantity: item.quantity?.toString() || '1',
+      category: 'other',
+    })),
+    rawText: processedReceipt.rawText,
+    confidence: processedReceipt.confidence.overall,
+    storeDetails: {
+      name: processedReceipt.merchant.name,
+      address: '', // Not available in new format
+      phone: '', // Not available in new format
+    },
+    taxInfo: {
+      taxAmount: processedReceipt.totals.tax?.toFixed(2) || '0.00',
+      subtotal: (processedReceipt.totals.total - (processedReceipt.totals.tax || 0)).toFixed(2),
+    },
+    paymentInfo: {
+      paymentMethod: processedReceipt.payment.method?.toString() || 'unknown',
+    },
+    receiptMetadata: {
+      currency: 'USD', // Default for now
+      locale: 'en-US', // Default for now
+    },
+  };
+};
+
+const fallbackCameraScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
+  try {
+    console.log('Using fallback camera scanner...');
+    
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       throw new Error("Camera permission denied");
     }
 
-    // Launch camera with document-optimized settings
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [3, 4], // Document-like aspect ratio
+      aspect: [3, 4],
       quality: 0.8,
     });
 
@@ -108,104 +153,312 @@ const fallbackCameraScanner = async (
       throw new Error("User canceled scanning");
     }
 
-    // Process the image for document scanning
     const processedImage = await processDocumentImage(result.assets[0].uri);
 
-    return {
+    const scanResult: ScanResult = {
       pages: [{ imageUri: processedImage }],
       pdfUri: undefined,
       pdfPageCount: undefined,
     };
+
+    // Process receipt data if enabled
+    try {
+      // Try modern processing first if enabled
+      if (opts?.useModernProcessing) {
+        try {
+          const modernResult = await processReceiptModern(processedImage, opts);
+          return { ...scanResult, ...modernResult };
+        } catch (modernError) {
+          console.warn("Modern processing failed, falling back to legacy:", modernError);
+        }
+      }
+
+      // Legacy processing
+      let receiptData: ReceiptData | GoogleVisionReceiptData;
+
+      if (opts?.useGoogleVision) {
+        try {
+          receiptData = await GoogleVisionService.processReceiptImage(processedImage);
+          console.log("Google Vision processing successful");
+        } catch (visionError) {
+          console.warn("Google Vision failed, falling back to OCR:", visionError);
+          if (Platform.OS === "android") {
+            receiptData = await OCRModule.parseReceipt(processedImage);
+          } else {
+            receiptData = {
+              merchant: "Unknown Merchant",
+              total: "0.00",
+              date: new Date().toLocaleDateString(),
+              items: [],
+              rawText: "Camera scan - processing not available on iOS",
+              confidence: 0.5,
+              storeDetails: { name: "Unknown Merchant", address: "", phone: "" },
+              taxInfo: { taxAmount: "0.00", subtotal: "0.00" },
+              paymentInfo: {},
+              receiptMetadata: { currency: "ZAR", locale: "en-ZA" }
+            } as ReceiptData;
+          }
+        }
+      } else {
+        if (Platform.OS === "android") {
+          receiptData = await OCRModule.parseReceipt(processedImage);
+        } else {
+          receiptData = {
+            merchant: "Camera Scan",
+            total: "0.00",
+            date: new Date().toLocaleDateString(),
+            items: [],
+            rawText: "Camera scan - manual entry required",
+            confidence: 0.3,
+            storeDetails: { name: "Camera Scan", address: "", phone: "" },
+            taxInfo: { taxAmount: "0.00", subtotal: "0.00" },
+            paymentInfo: {},
+            receiptMetadata: { currency: "ZAR", locale: "en-ZA" }
+          } as ReceiptData;
+        }
+      }
+
+      return { ...scanResult, receiptData };
+    } catch (processingError) {
+      console.warn("Receipt processing failed:", processingError);
+      return scanResult;
+    }
   } catch (error) {
     console.error("Fallback scanner error:", error);
     throw error;
   }
 };
 
-const processDocumentImage = async (imageUri: string): Promise<string> => {
+const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
+  console.log('Starting document scanner...');
+  
   try {
-    // Apply document enhancement
-    const manipulated = await ImageManipulator.manipulateAsync(
-      imageUri,
-      [
-        { resize: { width: 2048 } }, // Standardize size
-      ],
-      {
-        compress: 0.8,
-        format: ImageManipulator.SaveFormat.JPEG,
+    if (Platform.OS === "android") {
+      //console.log('Attempting ML Kit Document Scanner...');
+      
+      try {
+        const options = {
+          pageLimit: opts?.pageLimit || 6,
+          allowGalleryImport: opts?.allowGalleryImport ?? true,
+          scannerMode: (opts?.scannerMode || "full") as "base" | "full",
+          resultFormat: (opts?.pdf ? "pdf" : "jpeg") as "pdf" | "jpeg",
+        };
+
+        const result = await DocumentScannerNative.startScanning(options);
+
+        if (!result || typeof result !== 'object') {
+          console.warn('Invalid result from DocumentScannerNative, using fallback camera scanner');
+          return await fallbackCameraScanner(opts);
+        }
+
+        if (typeof result === 'string') {
+          console.log('ML Kit returned success message, falling back to camera scanner');
+          return await fallbackCameraScanner(opts);
+        }
+
+        const pages = Array.isArray(result.pages) ? result.pages : [];
+        
+        if (pages.length === 0) {
+          console.warn('No pages returned from ML Kit scanner, falling back to camera scanner');
+          return await fallbackCameraScanner(opts);
+        }
+
+        const scanResult: ScanResult = {
+          pages: pages.map((page: any) => {
+            if (typeof page === 'string') {
+              return { imageUri: page };
+            }
+            return { 
+              imageUri: page?.imageUri || page?.uri || ''
+            };
+          }),
+          pdfUri: result.pdfUri,
+          pdfPageCount: result.pdfPageCount || pages.length,
+        };
+
+        console.log('ML Kit scan successful, pages:', scanResult.pages.length);
+
+        if (scanResult.pages.length > 0 && scanResult.pages[0].imageUri) {
+          try {
+            // Try modern processing first if enabled
+            if (opts?.useModernProcessing) {
+              try {
+                const modernResult = await processReceiptModern(scanResult.pages[0].imageUri, opts);
+                return { ...scanResult, ...modernResult };
+              } catch (modernError) {
+                console.warn("Modern processing failed, falling back to legacy:", modernError);
+              }
+            }
+
+            // Legacy processing
+            let receiptData: ReceiptData | GoogleVisionReceiptData;
+
+            if (opts?.useGoogleVision) {
+              try {
+                receiptData = await GoogleVisionService.processReceiptImage(
+                  scanResult.pages[0].imageUri
+                );
+                console.log("Google Vision processing successful");
+              } catch (visionError) {
+                console.warn("Google Vision failed, falling back to OCR:", visionError);
+                receiptData = await OCRModule.parseReceipt(scanResult.pages[0].imageUri);
+              }
+            } else {
+              receiptData = await OCRModule.parseReceipt(scanResult.pages[0].imageUri);
+            }
+
+            return { ...scanResult, receiptData };
+          } catch (processingError) {
+            console.warn("All receipt processing methods failed:", processingError);
+            return scanResult;
+          }
+        }
+
+        return scanResult;
+      } catch (mlkitError) {
+        console.warn("ML Kit Scanner failed:", mlkitError);
+        return await fallbackCameraScanner(opts);
       }
-    );
-
-    return manipulated.uri;
-  } catch (error) {
-    console.error("Image processing error:", error);
-    return imageUri; // Return original if processing fails
-  }
-};
-
-// OCR functions for manual processing
-const extractText = async (imageUri: string) => {
-  if (Platform.OS === "android") {
-    try {
-      return await OCRModule.extractText(imageUri);
-    } catch (error) {
-      console.error("Text extraction failed:", error);
-      throw error;
+    } else {
+      return await fallbackCameraScanner(opts);
     }
-  } else {
-    throw new Error("OCR is only available on Android");
+  } catch (error) {
+    console.error("Document Scanner error:", error);
+    return await fallbackCameraScanner(opts);
   }
 };
 
+const pickFromGallery = async (opts?: ScannerOptions): Promise<ScanResult> => {
+  try {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      throw new Error("Gallery permission denied");
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.8,
+    });
+
+    if (result.canceled) {
+      throw new Error("User canceled gallery selection");
+    }
+
+    const processedImage = await processDocumentImage(result.assets[0].uri);
+
+    const scanResult: ScanResult = {
+      pages: [{ imageUri: processedImage }],
+      pdfUri: undefined,
+      pdfPageCount: undefined,
+    };
+
+    // Try modern processing first if enabled
+    if (opts?.useModernProcessing) {
+      try {
+        const modernResult = await processReceiptModern(processedImage, opts);
+        return { ...scanResult, ...modernResult };
+      } catch (modernError) {
+        console.warn("Modern processing failed for gallery image, falling back to legacy:", modernError);
+      }
+    }
+
+    // Legacy processing
+    if (opts?.useGoogleVision || Platform.OS === "android") {
+      try {
+        let receiptData: ReceiptData | GoogleVisionReceiptData | undefined;
+
+        if (opts?.useGoogleVision) {
+          try {
+            receiptData = await GoogleVisionService.processReceiptImage(processedImage);
+          } catch (visionError) {
+            console.warn("Google Vision failed for gallery image:", visionError);
+            if (Platform.OS === "android") {
+              receiptData = await OCRModule.parseReceipt(processedImage);
+            } else {
+              throw visionError;
+            }
+          }
+        } else if (Platform.OS === "android") {
+          receiptData = await OCRModule.parseReceipt(processedImage);
+        }
+
+        if (receiptData) {
+          return { ...scanResult, receiptData };
+        }
+      } catch (processingError) {
+        console.warn("Receipt processing failed for gallery image:", processingError);
+      }
+    }
+
+    return scanResult;
+  } catch (error) {
+    console.error("Gallery picker error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Parse receipt from image URI (compatibility method)
+ * This method is called from ScanReceipt.tsx when processing scanned images
+ */
 const parseReceipt = async (
   imageUri: string, 
-  useGoogleVision: boolean = false
-) => {
-  if (Platform.OS === "android") {
-    try {
-      // Priority 1: Google Vision (best accuracy)
-      if (useGoogleVision) {
-        try {
-          return await GoogleVisionService.processReceiptImage(imageUri);
-        } catch (visionError) {
-          console.warn("Google Vision failed, falling back:", visionError);
-          // Continue to OCR fallback
-        }
-      }
+  useGoogleVision: boolean = true
+): Promise<ReceiptData | GoogleVisionReceiptData> => {
+  console.log('🔍 DocumentScanner.parseReceipt called with:', { imageUri, useGoogleVision });
+  
+  try {
+    const opts: ScannerOptions = {
+      useGoogleVision,
+      useModernProcessing: true // Use modern processing by default
+    };
 
-      // Priority 2: Traditional ML Kit OCR
-      return await OCRModule.parseReceipt(imageUri);
-    } catch (error) {
-      console.error("Receipt parsing failed:", error);
-      throw error;
+    // Try modern processing first
+    try {
+      const modernResult = await processReceiptModern(imageUri, opts);
+      if (modernResult.receiptData) {
+        console.log('Modern processing successful in parseReceipt');
+        return modernResult.receiptData;
+      }
+    } catch (modernError) {
+      console.warn(' Modern processing failed in parseReceipt, falling back to legacy:', modernError);
     }
-  } else {
-    // iOS fallback - use Google Vision if available
+
+    // Fallback to legacy processing
     if (useGoogleVision) {
       try {
-        return await GoogleVisionService.processReceiptImage(imageUri);
-      } catch (error) {
-        console.warn("Google Vision failed on iOS:", error);
+        const receiptData = await GoogleVisionService.processReceiptImage(imageUri);
+        console.log(' Google Vision processing successful in parseReceipt');
+        return receiptData;
+      } catch (visionError) {
+        console.warn(' Google Vision failed in parseReceipt, falling back to OCR:', visionError);
+        if (Platform.OS === "android") {
+          return await OCRModule.parseReceipt(imageUri);
+        } else {
+          throw visionError;
+        }
+      }
+    } else {
+      if (Platform.OS === "android") {
+        return await OCRModule.parseReceipt(imageUri);
+      } else {
+        throw new Error('OCR processing not available on iOS');
       }
     }
-    
-    throw new Error("Receipt parsing requires Google Vision API on iOS");
-  }
-};
-
-// Processing functions
-const processWithGoogleVision = async (imageUri: string) => {
-  try {
-    return await GoogleVisionService.processReceiptImage(imageUri);
   } catch (error) {
-    console.error("Google Vision processing failed:", error);
+    console.error(' All parsing methods failed in parseReceipt:', error);
     throw error;
   }
 };
 
 export default {
   startScanner,
-  extractText,
-  parseReceipt,
-  processWithGoogleVision,
+  pickFromGallery,
+  processDocumentImage,
+  parseReceipt, 
+  
+  processReceiptModern,
+  convertToLegacyFormat,
 };

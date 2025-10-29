@@ -2,22 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import {
-  AddCategoryModal,
-  BudgetCategoryBreakdown,
-  CategoryBudgetItem,
-  CategoryDropdown
+    AddCategoryModal,
+    BudgetCategoryBreakdown,
+    CategoryBudgetItem,
+    CategoryDropdown
 } from '../../../assets/componets/budget';
 import { getBudgetById, listBudgets, updateBudget } from '../../../utils/CRUD/budgetcrud';
 import { createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
@@ -92,7 +92,7 @@ export default function EditBudget() {
   };
 
   const formatMonthForDisplay = (date: Date) => {
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    return date.toLocaleDateString('eu-ZA', { year: 'numeric', month: 'long' });
   };
 
   const handleMonthChange = (year: number, month: number) => {
@@ -111,7 +111,7 @@ export default function EditBudget() {
       options.push({
         year: date.getFullYear(),
         month: date.getMonth(),
-        display: date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+        display: date.toLocaleDateString('eu-ZA', { year: 'numeric', month: 'long' }),
         value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       });
     }
@@ -378,7 +378,7 @@ export default function EditBudget() {
                 <View key={budget._id} style={styles.contextBudgetCard}>
                   <View style={styles.contextBudgetHeader}>
                     <Text style={styles.contextBudgetMonth}>
-                      {new Date(budget.month + '-01').toLocaleDateString('en-US', { 
+                      {new Date(budget.month + '-01').toLocaleDateString('eu-ZA', { 
                         year: 'numeric', 
                         month: 'long' 
                       })}

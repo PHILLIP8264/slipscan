@@ -4,21 +4,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import insightsService from '../../services/InsightsService';
 import DocumentScanner from '../../utils/DocumentScanner';
 
 export default function Index() {
   const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
   const handleScanReceipt = async () => {
     try {
@@ -40,26 +42,25 @@ export default function Index() {
         scannerMode: "full",
         pdf: true,
         useGoogleVision: true,
+        useModernProcessing: true, // Enable new processing workflow
       });
 
-      // Handle successful scan
+      // Handle successful scan - navigate immediately to EditReceiptModern
       if (result.pages && result.pages.length > 0) {
-        Alert.alert(
-          "✅ Scan Complete!",
-          `Successfully scanned ${result.pages.length} page(s)!\n\n${
-            result.receiptData ? "Receipt data extracted automatically." : ""
-          }`,
-          [
-            {
-              text: "View Details",
-              onPress: () => {
-                // Navigate to receipt editing or details page
-                router.push("/EditReceipt");
-              },
-            },
-            { text: "Scan Another", style: "default" },
-          ]
-        );
+        try {
+          const receiptDataParam = result.receiptData
+            ? encodeURIComponent(JSON.stringify(result.receiptData))
+            : encodeURIComponent(JSON.stringify({}));
+          const imageUriParam = result.pages[0]?.imageUri
+            ? encodeURIComponent(result.pages[0].imageUri)
+            : '';
+
+          // Navigate immediately - processing will happen on EditReceiptModern page
+          router.push(`/EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
+        } catch (err) {
+          console.error('Failed to navigate to EditReceiptModern:', err);
+          router.push('/EditReceiptModern');
+        }
       } else {
         Alert.alert("ℹ️ No Pages Scanned", "Please try scanning again.");
       }
@@ -72,6 +73,49 @@ export default function Index() {
       );
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  const handleGenerateInsights = async () => {
+    try {
+      setIsGeneratingInsights(true);
+      
+      Alert.alert(
+        "🔍 Generating Insights",
+        "Analyzing your spending patterns and generating insights...",
+        [{ text: "OK" }]
+      );
+
+      // Get current month for insights generation
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+      
+      // Generate monthly insights - using a default userId for now
+      // In a real app, this would come from the authentication context
+      const userId = 'default-user';
+      
+      await insightsService.generateMonthlyInsights(currentMonth);
+      
+      Alert.alert(
+        "✅ Insights Generated!",
+        "Your spending insights have been generated successfully. You can view them in the Budget section.",
+        [
+          {
+            text: "View Budget",
+            onPress: () => router.push('/tabs/budget')
+          },
+          { text: "OK", style: "default" }
+        ]
+      );
+
+    } catch (error) {
+      console.error("Insights generation error:", error);
+      Alert.alert(
+        "❌ Insights Error",
+        "Failed to generate insights. Please make sure you have some receipts to analyze.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsGeneratingInsights(false);
     }
   };
 
@@ -177,6 +221,23 @@ export default function Index() {
                 <Ionicons name="wallet" size={24} color="#34A853" />
               </View>
               <Text style={styles.quickActionText}>Manage Budget</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.quickActionButton, isGeneratingInsights && styles.quickActionButtonDisabled]}
+              onPress={handleGenerateInsights}
+              disabled={isGeneratingInsights}
+            >
+              <View style={styles.quickActionIconContainer}>
+                <Ionicons 
+                  name={isGeneratingInsights ? "hourglass" : "analytics"} 
+                  size={24} 
+                  color="#9C27B0" 
+                />
+              </View>
+              <Text style={styles.quickActionText}>
+                {isGeneratingInsights ? "Generating..." : "Generate Insights"}
+              </Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -545,5 +606,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
     textAlign: 'center',
+  },
+  quickActionButtonDisabled: {
+    opacity: 0.6,
   },
 });
