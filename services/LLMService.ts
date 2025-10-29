@@ -72,7 +72,7 @@ class LLMService {
       
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      console.error(' LLM parsing failed:', error);
+      console.log(' LLM parsing failed:', error);
       
       // Return mock data as fallback
       if (this.config.app.enableMockData) {
@@ -91,67 +91,75 @@ class LLMService {
    * Build prompt for parsing only (no categorization)
    */
   private buildParsePrompt(rawText: string, context?: { imageUri?: string }): string {
-    return `You are an expert receipt parser. Given the raw OCR text from a receipt, extract structured data.
+    // Properly escape the raw text for JSON
+    const escapedRawText = rawText.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+    const currentISO = new Date().toISOString();
+    const imageUri = context?.imageUri || '';
+    
+    return `You are an expert receipt parser. Extract structured data from the OCR text below.
 
 RAW TEXT:
 ${rawText}
 
-CRITICAL INSTRUCTIONS:
-- Respond with ONLY valid JSON
-- No markdown, no code blocks, no explanatory text
-- Must start with { and end with }
-- All property names MUST be in double quotes
-- All string values MUST be in double quotes
-- Numbers should NOT be quoted
+INSTRUCTIONS:
+- Return ONLY valid JSON
+- NO markdown formatting, NO code blocks, NO explanations
+- Start with { and end with }
+- Use double quotes for all strings
+- Extract merchant name, date, items, totals, payment method
+- Provide confidence scores (0.0 to 1.0)
 
-JSON Response (copy this exact structure):
-
+Required JSON structure:
 {
   "merchantInfo": {
-    "name": "merchant name",
-    "phone_number": "123-456-7890",
-    "address": "merchant address",
+    "name": "store name from receipt",
+    "phone_number": "phone if found",
+    "address": "address if found", 
     "confidence": 0.9
   },
   "transactionInfo": {
-    "date": "2024-01-01T00:00:00Z",
+    "date": "ISO date string if found",
     "confidence": 0.8
   },
   "lineItems": [
     {
-      "name": "item name",
-      "itemprice": 5.99,
-      "linetotal": 5.99,
+      "name": "product name",
+      "itemprice": 0.00,
+      "linetotal": 0.00,
       "quantity": 1,
       "confidence": 0.85
     }
   ],
   "totals": {
-    "total": 25.99,
-    "tax": 2.08,
+    "total": 0.00,
+    "tax": 0.00,
     "confidence": 0.9
   },
   "paymentInfo": {
-    "method": "credit_card",
+    "method": "cash_or_card_or_other",
     "confidence": 0.7
   },
   "metadata": {
     "currency": "ZAR",
     "locale": "en-ZA",
-    "processingDate": "${new Date().toISOString()}",
-    "imageUri": "${context?.imageUri || ''}",
+    "processingDate": "${currentISO}",
+    "imageUri": "${imageUri}",
     "documentType": "receipt"
   },
-  "rawFields": { "rawText": "${rawText.replace(/"/g, '\\"')}" }
+  "rawFields": { "rawText": "${escapedRawText}" }
 }
 
-Focus on accuracy and provide confidence scores based on how clear the text extraction is.`;
+Parse the receipt data now:`;
   }
 
   /**
    * Call Gemini for parsing
    */
   private async callGeminiForParsing(prompt: string): Promise<any> {
+    if (this.config.app.enableLogging) {
+      console.log('🔍 Calling Gemini API with prompt length:', prompt.length);
+    }
+
     const response = await fetch(`${this.config.llm.apiUrl}/models/${this.config.llm.model}:generateContent?key=${this.config.llm.apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -166,16 +174,61 @@ Focus on accuracy and provide confidence scores based on how clear the text extr
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+      const errorText = await response.text();
+      console.log('❌ Gemini API error details:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const result: GeminiResponse = await response.json();
     
+    if (this.config.app.enableLogging) {
+      console.log('📡 Gemini API raw response:', JSON.stringify(result, null, 2));
+    }
+    
     if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+      console.log('❌ No response text from Gemini API:', result);
       throw new Error('No response from Gemini API');
     }
 
-    return JSON.parse(result.candidates[0].content.parts[0].text);
+    const responseText = result.candidates[0].content.parts[0].text;
+    
+    if (this.config.app.enableLogging) {
+      console.log('📄 Gemini response text:', responseText);
+    }
+
+    // Clean up potential markdown formatting
+    let cleanedResponse = responseText.trim();
+    
+    // Remove markdown code blocks if present
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    // Remove any leading/trailing whitespace again
+    cleanedResponse = cleanedResponse.trim();
+    
+    if (this.config.app.enableLogging) {
+      console.log('🧹 Cleaned response text:', cleanedResponse);
+    }
+
+    try {
+      return JSON.parse(cleanedResponse);
+    } catch (parseError) {
+      console.log('❌ JSON Parse Error:', parseError);
+      console.log('❌ Failed to parse response:', cleanedResponse);
+      
+      // Try to provide more specific error information
+      if (!cleanedResponse.startsWith('{')) {
+        throw new Error(`Invalid JSON response: doesn't start with '{'. Starts with: "${cleanedResponse.substring(0, 20)}"`);
+      }
+      if (!cleanedResponse.endsWith('}')) {
+        throw new Error(`Invalid JSON response: doesn't end with '}'. Ends with: "${cleanedResponse.substring(-20)}"`);
+      }
+      
+      throw new Error(`JSON parse failed: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+    }
   }
 
   /**
