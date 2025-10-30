@@ -4,16 +4,28 @@ import { COLLECTIONS, NoSQLDB, Receipt } from "../localdb";
 export async function createReceipt(receiptData: {
   merchant: string;
   amount: number;
-  category: string;
+  category?: string;
   date: Date;
   tags: string[];
   imageUrl?: string;
   ocrText: string;
+  items?: any[];
+  currency?: string;
+  locale?: string;
+  confidence?: number;
 }): Promise<Receipt> {
   try {
+    const fullReceiptData = {
+      ...receiptData,
+      items: receiptData.items || [],
+      currency: receiptData.currency || 'ZAR',
+      locale: receiptData.locale || 'en-ZA',
+      confidence: receiptData.confidence || 0.8
+    };
+    
     return await NoSQLDB.addDocument<Receipt>(
       COLLECTIONS.RECEIPTS,
-      receiptData
+      fullReceiptData
     );
   } catch (error) {
     console.error("Error creating receipt:", error);
@@ -204,10 +216,11 @@ export async function getTotalSpendingByCategory(): Promise<{
     const spending: { [category: string]: number } = {};
 
     receipts.forEach((receipt) => {
-      if (!spending[receipt.category]) {
-        spending[receipt.category] = 0;
+      const category = receipt.category || 'Uncategorized';
+      if (!spending[category]) {
+        spending[category] = 0;
       }
-      spending[receipt.category] += receipt.amount;
+      spending[category] += receipt.amount;
     });
 
     return spending;

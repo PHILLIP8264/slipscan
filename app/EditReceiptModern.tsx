@@ -379,7 +379,11 @@ export default function EditReceipt() {
             />
             <TextInput
               style={styles.input}
-              value={(editableData.merchant as any)?.address || editableData.merchant?.address?.street || ''}
+              value={
+                typeof editableData.merchant?.address === 'string' 
+                  ? editableData.merchant.address 
+                  : editableData.merchant?.address?.street || ''
+              }
               onChangeText={(text) => setEditableData({
                 ...editableData,
                 merchant: { 

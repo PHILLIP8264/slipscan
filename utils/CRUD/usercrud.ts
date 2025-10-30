@@ -145,15 +145,26 @@ export async function addReceiptToUser(
   receiptData: {
     merchant: string;
     amount: number;
-    category: string;
+    category?: string;
     date: Date;
     tags: string[];
     imageUrl?: string;
     ocrText: string;
+    items?: any[];
+    currency?: string;
+    locale?: string;
+    confidence?: number;
   }
 ) {
   try {
-    return await RelationshipHelpers.addReceiptToUser(userId, receiptData);
+    const fullReceiptData = {
+      ...receiptData,
+      items: receiptData.items || [],
+      currency: receiptData.currency || 'ZAR',
+      locale: receiptData.locale || 'en-ZA',
+      confidence: receiptData.confidence || 0.8
+    };
+    return await RelationshipHelpers.addReceiptToUser(userId, fullReceiptData);
   } catch (error) {
     console.error("Error adding receipt to user:", error);
     throw error;

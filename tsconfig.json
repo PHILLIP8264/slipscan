@@ -13,5 +13,11 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "**/*_backup.ts",
+    "**/*_backup.tsx",
+    "**/*_old.ts",
+    "**/*_old.tsx"
   ]
 }

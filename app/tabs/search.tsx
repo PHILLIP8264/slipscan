@@ -78,7 +78,7 @@ export default function SearchPage() {
           // Search across all fields
           searchResults = receipts.filter(receipt =>
             receipt.merchant.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            receipt.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (receipt.category && receipt.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
             receipt.ocrText.toLowerCase().includes(searchQuery.toLowerCase()) ||
             receipt.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
           );

@@ -72,7 +72,7 @@ class LLMService {
       
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      console.log(' LLM parsing failed:', error);
+      console.log('❌ LLM parsing failed:', error);
       
       // Return mock data as fallback
       if (this.config.app.enableMockData) {
@@ -91,10 +91,23 @@ class LLMService {
    * Build prompt for parsing only (no categorization)
    */
   private buildParsePrompt(rawText: string, context?: { imageUri?: string }): string {
-    // Properly escape the raw text for JSON
-    const escapedRawText = rawText.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+    if (!rawText || rawText.trim().length === 0) {
+      throw new Error('Raw text is empty or undefined');
+    }
+
+    // Properly escape the raw text for JSON with more robust escaping
+    const escapedRawText = rawText
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t')
+      .replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control characters
+    
     const currentISO = new Date().toISOString();
     const imageUri = context?.imageUri || '';
+    
+
     
     return `You are an expert receipt parser. Extract structured data from the OCR text below.
 
@@ -108,6 +121,8 @@ INSTRUCTIONS:
 - Use double quotes for all strings
 - Extract merchant name, date, items, totals, payment method
 - Provide confidence scores (0.0 to 1.0)
+- The date will appear as dd/mm/yy (e.g., "30/10/24")
+- Convert any date found on receipt to dd/mm/yy format
 
 Required JSON structure:
 {
@@ -118,7 +133,7 @@ Required JSON structure:
     "confidence": 0.9
   },
   "transactionInfo": {
-    "date": "ISO date string if found",
+    "date": "dd/mm/yy",
     "confidence": 0.8
   },
   "lineItems": [
@@ -153,6 +168,24 @@ Parse the receipt data now:`;
   }
 
   /**
+   * Simple date formatter to dd/mm/yy
+   */
+  private formatDate(dateStr: string): string {
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear().toString().slice(-2);
+      
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dateStr;
+    }
+  }
+
+  /**
    * Call Gemini for parsing
    */
   private async callGeminiForParsing(prompt: string): Promise<any> {
@@ -175,18 +208,14 @@ Parse the receipt data now:`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.log('❌ Gemini API error details:', errorText);
+      console.log('❌ Gemini API error:', response.status, errorText);
       throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const result: GeminiResponse = await response.json();
     
-    if (this.config.app.enableLogging) {
-      console.log('📡 Gemini API raw response:', JSON.stringify(result, null, 2));
-    }
-    
     if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.log('❌ No response text from Gemini API:', result);
+      console.log('❌ No response from Gemini API:', result);
       throw new Error('No response from Gemini API');
     }
 
@@ -198,6 +227,10 @@ Parse the receipt data now:`;
 
     // Clean up potential markdown formatting
     let cleanedResponse = responseText.trim();
+    
+    if (this.config.app.enableLogging) {
+      console.log('📄 Raw Gemini response before cleaning:', JSON.stringify(responseText));
+    }
     
     // Remove markdown code blocks if present
     if (cleanedResponse.startsWith('```json')) {
@@ -211,23 +244,24 @@ Parse the receipt data now:`;
     
     if (this.config.app.enableLogging) {
       console.log('🧹 Cleaned response text:', cleanedResponse);
+      console.log('🔍 Response length:', cleanedResponse.length);
+      console.log('🔍 First 100 chars:', cleanedResponse.substring(0, 100));
+      console.log('🔍 Last 100 chars:', cleanedResponse.substring(Math.max(0, cleanedResponse.length - 100)));
     }
 
     try {
-      return JSON.parse(cleanedResponse);
+      const parsedResult = JSON.parse(cleanedResponse);
+      
+      // Format date to dd/mm/yy if present
+      if (parsedResult.transactionInfo?.date) {
+        parsedResult.transactionInfo.date = this.formatDate(parsedResult.transactionInfo.date);
+      }
+      
+      return parsedResult;
     } catch (parseError) {
       console.log('❌ JSON Parse Error:', parseError);
-      console.log('❌ Failed to parse response:', cleanedResponse);
-      
-      // Try to provide more specific error information
-      if (!cleanedResponse.startsWith('{')) {
-        throw new Error(`Invalid JSON response: doesn't start with '{'. Starts with: "${cleanedResponse.substring(0, 20)}"`);
-      }
-      if (!cleanedResponse.endsWith('}')) {
-        throw new Error(`Invalid JSON response: doesn't end with '}'. Ends with: "${cleanedResponse.substring(-20)}"`);
-      }
-      
-      throw new Error(`JSON parse failed: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+      console.log('❌ Response:', cleanedResponse.substring(0, 200) + '...');
+      throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
     }
   }
 
@@ -237,7 +271,7 @@ Parse the receipt data now:`;
   private generateMockParseResult(rawText: string): ProcessingResult<any> {
     const mockData = {
       merchantInfo: { name: "Mock Store", phone_number: "011-123-4567", address: "123 Mock Street, Johannesburg", confidence: 0.8 },
-      transactionInfo: { date: new Date().toISOString(), confidence: 0.7 },
+      transactionInfo: { date: this.formatDate(new Date().toISOString()), confidence: 0.7 },
       lineItems: [
         { name: "Mock Item 1", itemprice: 5.99, linetotal: 5.99, quantity: 1, confidence: 0.8 },
         { name: "Mock Item 2", itemprice: 3.50, linetotal: 7.00, quantity: 2, confidence: 0.75 }

@@ -4,15 +4,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import insightsService from '../../services/InsightsService';
 import DocumentScanner from '../../utils/DocumentScanner';
@@ -248,6 +248,16 @@ export default function Index() {
                 <Ionicons name="search" size={24} color="#FBBC04" />
               </View>
               <Text style={styles.quickActionText}>Search Receipts</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.quickActionButton, { backgroundColor: '#FF5722' }]}
+              onPress={() => router.push('/APITest')}
+            >
+              <View style={styles.quickActionIconContainer}>
+                <Ionicons name="bug" size={24} color="#FFF" />
+              </View>
+              <Text style={[styles.quickActionText, { color: '#FFF' }]}>Debug APIs</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
