@@ -14,7 +14,7 @@ export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, onPress }) =>
   };
 
   const formatAmount = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
+    return `R${amount.toFixed(2)}`;
   };
 
   return (

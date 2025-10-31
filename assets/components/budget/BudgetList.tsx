@@ -10,6 +10,7 @@ interface BudgetListProps {
   onDeleteBudget: (budgetId: string) => void;
   loading?: boolean;
   refreshControl?: ReactElement<RefreshControlProps>;
+  showDetailedView?: boolean;
 }
 
 export const BudgetList: React.FC<BudgetListProps> = ({
@@ -18,12 +19,14 @@ export const BudgetList: React.FC<BudgetListProps> = ({
   onDeleteBudget,
   loading = false,
   refreshControl,
+  showDetailedView = false,
 }) => {
   const renderBudgetItem = ({ item }: { item: Budget }) => (
     <BudgetTile
       budget={item}
       onEdit={onEditBudget}
       onDelete={onDeleteBudget}
+      showDetailedView={showDetailedView}
     />
   );
 

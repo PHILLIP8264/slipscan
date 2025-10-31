@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   RefreshControl,
@@ -13,7 +13,7 @@ import {
   BudgetTabs,
   CreateBudgetButton,
   type BudgetTab,
-} from '../../assets/componets/budget';
+} from '../../assets/components/budget';
 import {
   deleteBudget,
   listBudgets,
@@ -31,6 +31,14 @@ export default function BudgetPage() {
   useEffect(() => {
     loadBudgets();
   }, []);
+
+  // Reload budgets whenever this screen regains focus (so newly created budgets appear immediately)
+  useFocusEffect(
+    useCallback(() => {
+      // Don't await here directly; call the loader which manages loading state
+      loadBudgets();
+    }, [])
+  );
 
   const loadBudgets = async (isRefresh = false) => {
     try {
@@ -162,6 +170,7 @@ export default function BudgetPage() {
             onEditBudget={handleEditBudget}
             onDeleteBudget={handleDeleteBudget}
             loading={loading}
+            showDetailedView={selectedTab === 'current'}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }

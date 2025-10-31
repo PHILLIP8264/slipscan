@@ -36,6 +36,13 @@ export default function ScanReceipt() {
       });
 
       console.log("ML Kit scan result:", result);
+      
+      // Check if user cancelled the scan
+      if (result.canceled) {
+        console.log("User cancelled scanning");
+        return;
+      }
+      
       console.log("Scan successful, pages:", result.pages?.length || 0);
       setScanResult(result);
 

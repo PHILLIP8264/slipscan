@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 interface AmountRangeFilterProps {
   minAmount: string;
@@ -50,11 +50,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ddd',
-    fontSize: 16,
+    fontSize: 14,
   },
   toText: {
-    marginHorizontal: 12,
-    fontSize: 16,
+    marginHorizontal: 8,
     color: '#666',
+    fontWeight: '600',
   },
 });

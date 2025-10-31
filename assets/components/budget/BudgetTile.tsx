@@ -7,9 +7,10 @@ interface BudgetTileProps {
   budget: Budget;
   onEdit: (budget: Budget) => void;
   onDelete: (budgetId: string) => void;
+  showDetailedView?: boolean;
 }
 
-export const BudgetTile: React.FC<BudgetTileProps> = ({ budget, onEdit, onDelete }) => {
+export const BudgetTile: React.FC<BudgetTileProps> = ({ budget, onEdit, onDelete, showDetailedView = false }) => {
   if (!budget || !budget._id) {
     return null;
   }
@@ -55,7 +56,121 @@ export const BudgetTile: React.FC<BudgetTileProps> = ({ budget, onEdit, onDelete
 
   const usagePercentage = getUsagePercentage();
 
-  // Minimal version with edit and delete buttons
+  if (showDetailedView) {
+    // Detailed view with category breakdown
+    return (
+      <View style={styles.tileContainer}>
+        <View style={styles.monthHeader}>
+          <Text style={styles.monthText}>{formatMonth(budget.month)}</Text>
+        </View>
+        
+        <View style={styles.budgetSection}>
+          <Text style={styles.totalBudgetText}>{formatCurrency(budget.totalBudget || 0)}</Text>
+          <Text style={styles.remainingText}>Remaining: {formatCurrency(budget.remainingBudget || 0)}</Text>
+          <Text style={styles.categoryCountText}>
+            {budget.categoryBudgets?.length || 0} categories
+          </Text>
+        </View>
+
+        {/* Overall Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressTitle}>Overall Progress</Text>
+            <Text style={[styles.percentageText, { 
+              color: usagePercentage > 90 ? '#ff3b30' : usagePercentage > 75 ? '#ff9500' : '#34c759' 
+            }]}>
+              {usagePercentage.toFixed(1)}%
+            </Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill,
+                {
+                  width: `${Math.min(usagePercentage, 100)}%`,
+                  backgroundColor: usagePercentage > 90 ? '#ff3b30' : usagePercentage > 75 ? '#ff9500' : '#34c759'
+                }
+              ]} 
+            />
+          </View>
+        </View>
+
+        {/* Category Breakdown */}
+        {budget.categoryBudgets && budget.categoryBudgets.length > 0 && (
+          <View style={styles.categoryPreview}>
+            <Text style={styles.categoryPreviewTitle}>Category Breakdown</Text>
+            <View style={styles.categoryList}>
+              {budget.categoryBudgets.map((catBudget) => {
+                const categoryUsage = catBudget.budgetAmount > 0 
+                  ? ((catBudget.budgetAmount - catBudget.remainingAmount) / catBudget.budgetAmount) * 100 
+                  : 0;
+                
+                return (
+                  <View key={catBudget.categoryId} style={styles.categoryBreakdownItem}>
+                    <View style={styles.categoryHeader}>
+                      <View style={styles.categoryInfo}>
+                        <Text style={styles.categoryName}>{catBudget.categoryName}</Text>
+                        <Text style={styles.categoryBudgetAmount}>
+                          {formatCurrency(catBudget.budgetAmount)}
+                        </Text>
+                      </View>
+                      <Text style={[
+                        styles.categoryUsageText,
+                        { color: categoryUsage > 90 ? '#ff3b30' : categoryUsage > 75 ? '#ff9500' : '#34c759' }
+                      ]}>
+                        {categoryUsage.toFixed(0)}%
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.categoryProgressBar}>
+                      <View 
+                        style={[
+                          styles.categoryProgressFill,
+                          {
+                            width: `${Math.min(categoryUsage, 100)}%`,
+                            backgroundColor: categoryUsage > 90 ? '#ff3b30' : categoryUsage > 75 ? '#ff9500' : '#34c759'
+                          }
+                        ]} 
+                      />
+                    </View>
+                    
+                    <View style={styles.categoryAmounts}>
+                      <Text style={styles.categorySpentText}>
+                        Spent: {formatCurrency(catBudget.budgetAmount - catBudget.remainingAmount)}
+                      </Text>
+                      <Text style={styles.categoryRemainingText}>
+                        Remaining: {formatCurrency(catBudget.remainingAmount)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+        
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={styles.editButton} 
+            onPress={() => onEdit(budget)}
+          >
+            <Ionicons name="pencil" size={16} color="white" />
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={handleDelete}
+          >
+            <Ionicons name="trash" size={16} color="white" />
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Minimal version with edit and delete buttons (for past and upcoming budgets)
   return (
     <View style={styles.tileContainer}>
       <Text style={styles.monthText}>{formatMonth(budget.month)}</Text>
@@ -285,5 +400,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1a1a1a',
+  },
+  categoryBreakdownItem: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryInfo: {
+    flex: 1,
+  },
+  categoryBudgetAmount: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  categoryUsageText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  categoryProgressBar: {
+    height: 6,
+    backgroundColor: '#e9ecef',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  categoryProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  categoryAmounts: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  categorySpentText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  categoryRemainingText: {
+    fontSize: 12,
+    color: '#34c759',
+    fontWeight: '600',
   },
 });

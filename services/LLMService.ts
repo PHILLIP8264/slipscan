@@ -1,7 +1,6 @@
 /**
  * LLM Service for Receipt Parsing Only
- * 
- * This service handles receipt parsing using Gemini AI (no categorization)
+ * * This service handles receipt parsing using Gemini AI (no categorization)
  */
 
 import getConfig from '../config/environment';
@@ -26,11 +25,13 @@ class LLMService {
   private config = getConfig();
   private rateLimitDelay = 1000;
   private lastRequestTime = 0;
+  
+  // --- Exponential Backoff Configuration ---
+  private MAX_RETRIES = 3; // Maximum retry attempts after the initial request
+  private INITIAL_DELAY_MS = 1000; // Starting delay (1 second)
 
   constructor() {
-    if (this.config.app.enableLogging) {
-      console.log(`🤖 LLMService initialized with ${this.config.llm.provider} provider`);
-    }
+    // Service ready
   }
 
   /**
@@ -54,27 +55,19 @@ class LLMService {
       // Build parsing prompt
       const prompt = this.buildParsePrompt(rawText, context);
       
-      // Make LLM request
+      // Make LLM request with retry logic
       const response = await this.callGeminiForParsing(prompt);
       
-      const processingTime = Date.now() - startTime;
-      
-      if (this.config.app.enableLogging) {
-        console.log(`✅ Gemini parsing completed in ${processingTime}ms`);
-      }
-
       return {
         success: true,
         data: response,
-        processingTime,
+        processingTime: Date.now() - startTime,
         confidence: 0.85,
       };
       
     } catch (error) {
-      const processingTime = Date.now() - startTime;
-      console.log('❌ LLM parsing failed:', error);
+      console.error('LLM parsing failed:', error);
       
-      // Return mock data as fallback
       if (this.config.app.enableMockData) {
         return this.generateMockParseResult(rawText);
       }
@@ -82,7 +75,7 @@ class LLMService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        processingTime,
+        processingTime: Date.now() - startTime,
       };
     }
   }
@@ -94,6 +87,8 @@ class LLMService {
     if (!rawText || rawText.trim().length === 0) {
       throw new Error('Raw text is empty or undefined');
     }
+
+    console.log('Raw OCR Text:', rawText);
 
     // Properly escape the raw text for JSON with more robust escaping
     const escapedRawText = rawText
@@ -127,7 +122,7 @@ INSTRUCTIONS:
 Required JSON structure:
 {
   "merchantInfo": {
-    "name": "store name from receipt",
+    "name": "store name",
     "phone_number": "phone if found",
     "address": "address if found", 
     "confidence": 0.9
@@ -171,98 +166,118 @@ Parse the receipt data now:`;
    * Simple date formatter to dd/mm/yy
    */
   private formatDate(dateStr: string): string {
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear().toString().slice(-2);
-      
-      return `${day}/${month}/${year}`;
-    } catch {
-      return dateStr;
-    }
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear().toString().slice(-2);
+    
+    return `${day}/${month}/${year}`;
+  }
+  
+  /**
+   * Utility function to create a delay.
+   */
+  private delay(ms: number): Promise<void> {
+      return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+
   /**
-   * Call Gemini for parsing
+   * Call Gemini for parsing with exponential backoff and retry logic.
+   * Retries on 503 (Service Unavailable) and 429 (Too Many Requests).
    */
   private async callGeminiForParsing(prompt: string): Promise<any> {
-    if (this.config.app.enableLogging) {
-      console.log('🔍 Calling Gemini API with prompt length:', prompt.length);
-    }
-
-    const response = await fetch(`${this.config.llm.apiUrl}/models/${this.config.llm.model}:generateContent?key=${this.config.llm.apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json"
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log('❌ Gemini API error:', response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-
-    const result: GeminiResponse = await response.json();
-    
-    if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.log('❌ No response from Gemini API:', result);
-      throw new Error('No response from Gemini API');
-    }
-
-    const responseText = result.candidates[0].content.parts[0].text;
-    
-    if (this.config.app.enableLogging) {
-      console.log('📄 Gemini response text:', responseText);
-    }
-
-    // Clean up potential markdown formatting
-    let cleanedResponse = responseText.trim();
-    
-    if (this.config.app.enableLogging) {
-      console.log('📄 Raw Gemini response before cleaning:', JSON.stringify(responseText));
-    }
-    
-    // Remove markdown code blocks if present
-    if (cleanedResponse.startsWith('```json')) {
-      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (cleanedResponse.startsWith('```')) {
-      cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
-    
-    // Remove any leading/trailing whitespace again
-    cleanedResponse = cleanedResponse.trim();
-    
-    if (this.config.app.enableLogging) {
-      console.log('🧹 Cleaned response text:', cleanedResponse);
-      console.log('🔍 Response length:', cleanedResponse.length);
-      console.log('🔍 First 100 chars:', cleanedResponse.substring(0, 100));
-      console.log('🔍 Last 100 chars:', cleanedResponse.substring(Math.max(0, cleanedResponse.length - 100)));
-    }
-
-    try {
-      const parsedResult = JSON.parse(cleanedResponse);
+    const url = `${this.config.llm.apiUrl}/models/${this.config.llm.model}:generateContent?key=${this.config.llm.apiKey}`;
+    const options: RequestInit = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 2048,
+                responseMimeType: "application/json"
+            },
+        }),
+    };
       
-      // Format date to dd/mm/yy if present
-      if (parsedResult.transactionInfo?.date) {
-        parsedResult.transactionInfo.date = this.formatDate(parsedResult.transactionInfo.date);
-      }
-      
-      return parsedResult;
-    } catch (parseError) {
-      console.log('❌ JSON Parse Error:', parseError);
-      console.log('❌ Response:', cleanedResponse.substring(0, 200) + '...');
-      throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+    // Loop for initial attempt (retryCount=0) plus MAX_RETRIES attempts
+    for (let retryCount = 0; retryCount <= this.MAX_RETRIES; retryCount++) {
+        try {
+            const response = await fetch(url, options);
+
+            // --- 1. SUCCESS PATH ---
+            if (response.ok) {
+                const result: GeminiResponse = await response.json();
+                
+                if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    throw new Error('No response from Gemini API');
+                }
+
+                let responseText = result.candidates[0].content.parts[0].text.trim();
+                
+                // Remove markdown code blocks if present
+                if (responseText.startsWith('```json')) {
+                    responseText = responseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                } else if (responseText.startsWith('```')) {
+                    responseText = responseText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+                }
+                
+                responseText = responseText.trim();
+
+                try {
+                    const parsedResult = JSON.parse(responseText);
+                    
+                    // Format date to dd/mm/yy if present
+                    if (parsedResult.transactionInfo?.date) {
+                        parsedResult.transactionInfo.date = this.formatDate(parsedResult.transactionInfo.date);
+                    }
+                    
+                    return parsedResult;
+                } catch (parseError) {
+                    throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+                }
+            }
+
+            // --- 2. TRANSIENT ERROR PATH (Retryable: 503 or 429) ---
+            if (response.status === 503 || response.status === 429) {
+                if (retryCount < this.MAX_RETRIES) {
+                    // Calculate exponential backoff delay (1s, 2s, 4s, ...)
+                    const waitTime = this.INITIAL_DELAY_MS * Math.pow(2, retryCount);
+                    
+                    // Log the retry attempt
+                    console.warn(`[API Retry] Status ${response.status}. Retrying in ${waitTime}ms... (Attempt ${retryCount + 1} of ${this.MAX_RETRIES})`);
+                    
+                    await this.delay(waitTime);
+                    continue; // Skip the rest of the loop and try again
+                }
+            }
+            
+            // --- 3. PERMANENT ERROR PATH (Non-retryable or retries exhausted) ---
+            const errorText = await response.text();
+            throw new Error(`Gemini API error (Status ${response.status}): ${errorText}`);
+
+        } catch (error) {
+            // --- 4. NETWORK ERROR PATH (fetch failed completely) ---
+            if (retryCount < this.MAX_RETRIES) {
+                // Network errors can be transient too, so we retry
+                const waitTime = this.INITIAL_DELAY_MS * Math.pow(2, retryCount);
+                
+                console.warn(`[Network Retry] Failed with error: ${error instanceof Error ? error.message : 'Unknown Network Error'}. Retrying in ${waitTime}ms... (Attempt ${retryCount + 1} of ${this.MAX_RETRIES})`);
+                
+                await this.delay(waitTime);
+                continue; // Skip the rest of the loop and try again
+            }
+            
+            // Retries exhausted, re-throw the original error
+            throw error;
+        }
     }
+    
+    // Fallback if the loop somehow exits without returning a result
+    throw new Error(`Failed to process request after ${this.MAX_RETRIES + 1} attempts.`);
   }
 
   /**

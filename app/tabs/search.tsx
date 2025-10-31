@@ -1,31 +1,34 @@
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    RefreshControl,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    View
+  Alert,
+  Animated,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  View
 } from 'react-native';
 import {
-    AmountRangeFilter,
-    FilterButtons,
-    ReceiptList,
-    SearchBar,
-    type SearchFilter,
-} from '../../assets/componets/search';
+  AmountRangeFilter,
+  DateRangeFilter,
+  FilterButtons,
+  ReceiptList,
+  SearchBar,
+  type SearchFilter,
+} from '../../assets/components/search';
 import {
-    getReceiptsByCategory,
-    getReceiptsByMerchant,
-    getReceiptsByTag,
-    getReceiptsInAmountRange,
-    listReceipts,
-    searchReceiptsByOCR
+  getReceiptsByCategory,
+  getReceiptsByMerchant,
+  getReceiptsByTag,
+  getReceiptsInAmountRange,
+  getReceiptsInDateRange,
+  listReceipts,
+  searchReceiptsByOCR
 } from '../../utils/CRUD/receiptcrud';
 import { Receipt } from '../../utils/localdb';
 
 export default function SearchPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [filteredReceipts, setFilteredReceipts] = useState<Receipt[]>([]);
@@ -34,6 +37,8 @@ export default function SearchPage() {
   const [selectedFilter, setSelectedFilter] = useState<SearchFilter>('all');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [scrollY] = useState(new Animated.Value(0));
 
   useEffect(() => {
@@ -42,7 +47,7 @@ export default function SearchPage() {
 
   useEffect(() => {
     handleSearch();
-  }, [searchQuery, selectedFilter, receipts, minAmount, maxAmount]);
+  }, [searchQuery, selectedFilter, receipts, minAmount, maxAmount, startDate, endDate]);
 
   const loadAllReceipts = async () => {
     try {
@@ -64,8 +69,27 @@ export default function SearchPage() {
     setRefreshing(false);
   };
 
+  const parseDate = (dateStr: string): Date | null => {
+    if (!dateStr.trim()) return null;
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return null;
+    const day = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+    const year = parseInt(parts[2]);
+    if (year < 100) {
+      // Assume years 00-30 are 20xx, 31-99 are 19xx
+      return new Date(year + (year <= 30 ? 2000 : 1900), month, day);
+    }
+    return new Date(year, month, day);
+  };
+
+  const validateAmountInput = (value: string): number | null => {
+    const num = parseFloat(value);
+    return isNaN(num) ? null : num;
+  };
+
   const handleSearch = async () => {
-    if (!searchQuery.trim() && selectedFilter !== 'amount') {
+    if (!searchQuery.trim() && selectedFilter !== 'amount' && selectedFilter !== 'date') {
       setFilteredReceipts(receipts);
       return;
     }
@@ -96,9 +120,24 @@ export default function SearchPage() {
           searchResults = await searchReceiptsByOCR(searchQuery);
           break;
         case 'amount':
-          const min = parseFloat(minAmount) || 0;
-          const max = parseFloat(maxAmount) || Number.MAX_VALUE;
+          const min = validateAmountInput(minAmount) ?? 0;
+          const max = validateAmountInput(maxAmount) ?? Number.MAX_VALUE;
           searchResults = await getReceiptsInAmountRange(min, max);
+          break;
+        case 'date':
+          const start = parseDate(startDate);
+          const end = parseDate(endDate);
+          if (start && end) {
+            searchResults = await getReceiptsInDateRange(start, end);
+          } else if (start) {
+            // If only start date provided, search from start date to now
+            searchResults = await getReceiptsInDateRange(start, new Date());
+          } else if (end) {
+            // If only end date provided, search from beginning of time to end date
+            searchResults = await getReceiptsInDateRange(new Date(0), end);
+          } else {
+            searchResults = receipts;
+          }
           break;
         default:
           searchResults = receipts;
@@ -115,11 +154,13 @@ export default function SearchPage() {
     setSearchQuery('');
     setMinAmount('');
     setMaxAmount('');
+    setStartDate('');
+    setEndDate('');
   };
 
   const handleReceiptPress = (receipt: Receipt) => {
-    // TODO: Navigate to receipt details page
-    console.log('Receipt pressed:', receipt._id);
+    // Navigate to receipt details/edit page
+    router.push(`/EditReceiptModern?id=${receipt._id}`);
   };
 
   const getSearchStats = () => {
@@ -132,7 +173,7 @@ export default function SearchPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString('eu-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `R${amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const stats = getSearchStats();
@@ -144,23 +185,7 @@ export default function SearchPage() {
       
           
 
-      <Animated.ScrollView
-        style={styles.content}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-        bouncesZoom={false}
-        alwaysBounceVertical={false}
-        scrollEventThrottle={30}
-        decelerationRate="normal"
-        overScrollMode="auto"
-      >
+      <View style={styles.content}>
         <View style={styles.searchSection}>
           <SearchBar
             searchQuery={searchQuery}
@@ -182,16 +207,25 @@ export default function SearchPage() {
               onMaxAmountChange={setMaxAmount}
             />
           )}
+
+          {selectedFilter === 'date' && (
+            <DateRangeFilter
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+            />
+          )}
         </View>
 
         <ReceiptList
           receipts={filteredReceipts}
           loading={loading}
-          refreshing={false} // Handle refresh at page level
-          onRefresh={() => {}}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           onReceiptPress={handleReceiptPress}
         />
-      </Animated.ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

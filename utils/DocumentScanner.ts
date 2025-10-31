@@ -45,6 +45,8 @@ export type ScanResult = {
   // New fields for modern processing
   processedReceipt?: ProcessedReceipt;
   processingResult?: any;
+  // Cancellation status
+  canceled?: boolean;
 };
 
 const processDocumentImage = async (imageUri: string): Promise<string> => {
@@ -150,7 +152,11 @@ const fallbackCameraScanner = async (opts?: ScannerOptions): Promise<ScanResult>
     });
 
     if (result.canceled) {
-      throw new Error("User canceled scanning");
+      // Return a cancelled result instead of throwing an error
+      return {
+        pages: [],
+        canceled: true
+      };
     }
 
     const processedImage = await processDocumentImage(result.assets[0].uri);
@@ -231,10 +237,12 @@ const fallbackCameraScanner = async (opts?: ScannerOptions): Promise<ScanResult>
 
 const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
   console.log('Starting document scanner...');
+  console.log('Platform:', Platform.OS);
+  console.log('Scanner options:', opts);
   
   try {
     if (Platform.OS === "android") {
-      //console.log('Attempting ML Kit Document Scanner...');
+      console.log('Attempting ML Kit Document Scanner...');
       
       try {
         const options = {
@@ -244,7 +252,10 @@ const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
           resultFormat: (opts?.pdf ? "pdf" : "jpeg") as "pdf" | "jpeg",
         };
 
+        console.log('Calling DocumentScannerNative.startScanning with options:', options);
         const result = await DocumentScannerNative.startScanning(options);
+        console.log('DocumentScannerNative result type:', typeof result);
+        console.log('DocumentScannerNative result:', result);
 
         if (!result || typeof result !== 'object') {
           console.warn('Invalid result from DocumentScannerNative, using fallback camera scanner');
@@ -317,13 +328,46 @@ const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
         return scanResult;
       } catch (mlkitError) {
         console.warn("ML Kit Scanner failed:", mlkitError);
+        
+        // Check if this is a user cancellation
+        const errorCode = (mlkitError as any)?.code || '';
+        const errorMessage = (mlkitError as any)?.message || String(mlkitError) || '';
+        if (errorCode === 'USER_CANCELED' ||
+            errorMessage.toLowerCase().includes('user canceled') || 
+            errorMessage.toLowerCase().includes('cancel') || 
+            errorMessage.toLowerCase().includes('abort')) {
+          console.log("User cancelled ML Kit scanner");
+          return {
+            pages: [],
+            canceled: true
+          };
+        }
+        
+        console.log("Falling back to camera scanner due to ML Kit error");
         return await fallbackCameraScanner(opts);
       }
     } else {
+      console.log("Not Android platform, using fallback camera scanner");
       return await fallbackCameraScanner(opts);
     }
   } catch (error) {
     console.error("Document Scanner error:", error);
+    
+    // Check if this is a user cancellation
+    const errorCode = (error as any)?.code || '';
+    const errorMessage = (error as any)?.message || String(error) || '';
+    if (errorCode === 'USER_CANCELED' ||
+        errorMessage.toLowerCase().includes('user canceled') || 
+        errorMessage.toLowerCase().includes('cancel') || 
+        errorMessage.toLowerCase().includes('abort')) {
+      console.log("User cancelled document scanner");
+      return {
+        pages: [],
+        canceled: true
+      };
+    }
+    
+    console.log("Falling back to camera scanner due to general error");
     return await fallbackCameraScanner(opts);
   }
 };
@@ -343,7 +387,11 @@ const pickFromGallery = async (opts?: ScannerOptions): Promise<ScanResult> => {
     });
 
     if (result.canceled) {
-      throw new Error("User canceled gallery selection");
+      // Return a cancelled result instead of throwing an error
+      return {
+        pages: [],
+        canceled: true
+      };
     }
 
     const processedImage = await processDocumentImage(result.assets[0].uri);

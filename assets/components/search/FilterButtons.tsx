@@ -14,6 +14,7 @@ const filterOptions = [
   { filter: 'category' as SearchFilter, title: 'Category' },
   { filter: 'tag' as SearchFilter, title: 'Tags' },
   { filter: 'content' as SearchFilter, title: 'Content' },
+  { filter: 'date' as SearchFilter, title: 'Date' },
   { filter: 'amount' as SearchFilter, title: 'Amount' },
 ];
 

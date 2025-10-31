@@ -2,23 +2,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import {
-    AddCategoryModal,
-    BudgetCategoryBreakdown,
-    CategoryBudgetItem,
-    CategoryDropdown
-} from '../../../assets/componets/budget';
+  AddCategoryModal,
+  BudgetCategoryBreakdown,
+  CategoryBudgetItem,
+  CategoryDropdown
+} from '../../../assets/components/budget';
 import { getBudgetById, listBudgets, updateBudget } from '../../../utils/CRUD/budgetcrud';
 import { createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
 import { Budget, Category, CategoryBudget } from '../../../utils/localdb';

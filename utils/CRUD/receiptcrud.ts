@@ -114,7 +114,7 @@ export async function getReceiptsByCategory(
   try {
     return await NoSQLDB.queryDocuments<Receipt>(
       COLLECTIONS.RECEIPTS,
-      (receipt) => receipt.category === category
+      (receipt) => receipt.category?.toLowerCase().includes(category.toLowerCase()) ?? false
     );
   } catch (error) {
     console.error("Error getting receipts by category:", error);
