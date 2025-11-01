@@ -44,10 +44,10 @@ export interface ReceiptStructure {
   };
   lineItems: LineItem[];
   totals: {
-    subtotal: number; // <-- ADD THIS
+    subtotal: number;
+    total: number;
     tax: number;
     tip: number;
-    total: number;     // This is the GRAND total
     confidence: number;
   };
   paymentInfo: {
@@ -180,10 +180,10 @@ CRITICAL INSTRUCTIONS:
 - Do NOT add trailing commas
 - Ensure JSON is complete - don't cut off mid-way
 - Extract merchant name, date, items, and all total fields (subtotal, tax, tip, and grand total).
-- Extract any "Tip" or "Gratuity" and place it in "totals.tip". If none, use 0.00.
 - Place the total *before* tax/tip into "totals.subtotal".
 - Place the final, grand total (what the customer paid) into "totals.total".
 - **CRITICAL**: "totals.total" MUST be the final amount paid, *including* all items, tax, and tip.
+- Extract any "Tip" or "Gratuity" and place it in "totals.tip". If none, use 0.00
 - Categorize each item using the available categories below
 - If a category is not obvious, use "Other"
 - Provide confidence scores (0.0 to 1.0)
@@ -227,10 +227,10 @@ Required JSON structure:
     }
   ],
   "totals": {
-    "subtotal": 0.00, // <-- ADD THIS (Total before tax/tip)
+    "subtotal": 0.00, 
     "tax": 0.00,
     "tip": 0.00,
-    "total": 0.00,     // <-- This is now clearly the GRAND total
+    "total": 0.00,     
     "confidence": 0.9
   },
   "paymentInfo": {
@@ -247,7 +247,12 @@ Required JSON structure:
   "rawFields": { "rawText": "${rawTextPlaceholder}" }
 }
 
-IMPORTANT: Return the complete JSON structure above with actual data. Ensure it ends with } and is valid JSON:`;
+CRITICAL: Return ONLY the complete JSON structure above with actual data from the receipt.
+- Must be valid, complete JSON that starts with { and ends with }
+- Do NOT truncate or cut off the response mid-way
+- Ensure all properties are included
+- If you run out of space, prioritize completing the JSON structure over adding extra items
+- Maximum 3 line items if space is limited, but complete the full JSON structure:`;
   }
 
   /**
@@ -295,7 +300,7 @@ IMPORTANT: Return the complete JSON structure above with actual data. Ensure it 
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 2048, // Increased for larger receipts
+          maxOutputTokens: 4096, // Reduced to prevent truncation
           responseMimeType: 'application/json',
         },
       }),
@@ -315,6 +320,7 @@ IMPORTANT: Return the complete JSON structure above with actual data. Ensure it 
           }
 
           let responseText = result.candidates[0].content.parts[0].text.trim();
+          const originalResponseText = responseText;
 
           console.log('Raw Gemini Response:', responseText);
 
@@ -334,14 +340,29 @@ IMPORTANT: Return the complete JSON structure above with actual data. Ensure it 
           // Try to repair incomplete JSON
           responseText = this.repairJSON(responseText);
 
-          console.log('Cleaned Response:', responseText);
+          console.log('Original Response Length:', originalResponseText.length);
+          console.log('Cleaned Response Length:', responseText.length);
+          console.log('Response Preview:', responseText.slice(0, 200) + '...');
+          console.log('Response Ending:', '...' + responseText.slice(-200));
 
           let parsedResult: unknown;
           try {
             parsedResult = JSON.parse(responseText);
+            console.log('JSON parsing successful');
           } catch (parseError) {
             console.error('JSON Parse Error:', parseError);
-            console.error('Problematic Response:', responseText);
+            console.error('Error Type:', parseError instanceof Error ? parseError.name : typeof parseError);
+            console.error('Problematic Response Length:', responseText.length);
+            console.error('Response Character Codes at End:', 
+              responseText.slice(-10).split('').map(c => c.charCodeAt(0)));
+            
+            // Try to create a fallback structure from the partial response
+            const fallbackResult = this.createFallbackStructure(responseText);
+            if (fallbackResult) {
+              console.warn('Using fallback structure due to JSON parse error');
+              return fallbackResult;
+            }
+            
             throw new Error(
               `Failed to parse JSON response: ${
                 parseError instanceof Error ? parseError.message : 'Unknown error'
@@ -351,9 +372,15 @@ IMPORTANT: Return the complete JSON structure above with actual data. Ensure it 
 
           // Validate required structure
           if (!this.validateResponseStructure(parsedResult)) {
-            console.warn(
-              'Response structure validation failed, using fallback'
-            );
+            console.warn('Response structure validation failed, using fallback');
+            
+            // Try to create a fallback structure
+            const fallbackResult = this.createFallbackStructure(responseText);
+            if (fallbackResult) {
+              console.warn('Using fallback structure due to validation failure');
+              return fallbackResult;
+            }
+            
             throw new Error('Invalid response structure from Gemini');
           }
 
@@ -417,15 +444,55 @@ IMPORTANT: Return the complete JSON structure above with actual data. Ensure it 
    * Attempt to repair incomplete or malformed JSON
    */
   private repairJSON(jsonStr: string): string {
+    if (!jsonStr || jsonStr.trim().length === 0) {
+      return '{}'; // Return empty object for empty input
+    }
+
+    let repaired = jsonStr.trim();
+    
     // Remove any trailing commas before closing braces/brackets
-    let repaired = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+    repaired = repaired.replace(/,(\s*[}\]])/g, '$1');
+    
+    // Remove any trailing commas at the end of the string
+    repaired = repaired.replace(/,\s*$/, '');
+    
+    // Handle incomplete JSON that doesn't start with {
+    if (!repaired.startsWith('{')) {
+      // Try to find the start of JSON
+      const jsonStart = repaired.indexOf('{');
+      if (jsonStart > -1) {
+        repaired = repaired.substring(jsonStart);
+      } else {
+        return '{}'; // No JSON found, return empty object
+      }
+    }
 
     // If JSON is incomplete (doesn't end with }), try to complete it
-    if (!repaired.trim().endsWith('}')) {
+    if (!repaired.endsWith('}')) {
+      console.log('Incomplete JSON detected, attempting repair...');
+      
+      // Count opening and closing braces
       const openBraces = (repaired.match(/\{/g) || []).length;
       const closeBraces = (repaired.match(/\}/g) || []).length;
+      
+      // Count opening and closing brackets
+      const openBrackets = (repaired.match(/\[/g) || []).length;
+      const closeBrackets = (repaired.match(/\]/g) || []).length;
+      
+      // Close any open strings that might be causing issues
+      const quoteCount = (repaired.match(/"/g) || []).length;
+      if (quoteCount % 2 !== 0) {
+        repaired += '"';
+      }
+      
+      // Close missing brackets first
+      const missingBrackets = openBrackets - closeBrackets;
+      if (missingBrackets > 0) {
+        repaired += ']'.repeat(missingBrackets);
+      }
+      
+      // Close missing braces
       const missingBraces = openBraces - closeBraces;
-
       if (missingBraces > 0) {
         repaired += '}'.repeat(missingBraces);
       }
@@ -463,43 +530,80 @@ IMPORTANT: Return the complete JSON structure above with actual data. Ensure it 
     responseText: string
   ): ReceiptStructure | null {
     try {
+      // Try to extract multiple data points from the partial response
       const merchantMatch = responseText.match(/"name":\s*"([^"]+)"/);
-      const totalMatch = responseText.match(/"total":\s*([\d.]+)/);
+      const addressMatch = responseText.match(/"address":\s*"([^"]+)"/);
+      const phoneMatch = responseText.match(/"phone_number":\s*"([^"]+)"/);
+      const dateMatch = responseText.match(/"date":\s*"([^"]+)"/);
+      const totalMatch = responseText.match(/"total":\s*([\d.,]+)/);
+      const taxMatch = responseText.match(/"tax":\s*([\d.,]+)/);
+      const tipMatch = responseText.match(/"tip":\s*([\d.,]+)/);
+      const methodMatch = responseText.match(/"method":\s*"([^"]+)"/);
+      
+      // Extract line items if present
+      const lineItemsMatch = responseText.match(/"lineItems":\s*\[(.*?)\]/s);
+      let extractedItems: any[] = [];
+      
+      if (lineItemsMatch) {
+        try {
+          // Try to extract individual items
+          const itemPattern = /"name":\s*"([^"]+)"[^}]*?"itemprice":\s*([\d.,]+)[^}]*?"quantity":\s*(\d+)/g;
+          let itemMatch;
+          while ((itemMatch = itemPattern.exec(lineItemsMatch[1]))) {
+            const price = parseFloat(itemMatch[2].replace(',', '.'));
+            const quantity = parseInt(itemMatch[3]);
+            extractedItems.push({
+              name: itemMatch[1],
+              itemprice: price,
+              linetotal: price * quantity,
+              quantity: quantity,
+              category: 'Other',
+              categoryConfidence: 0.3,
+              confidence: 0.4,
+            });
+          }
+        } catch (error) {
+          console.log('Could not extract line items from partial response');
+        }
+      }
+      
       const currentISO = new Date().toISOString();
-      const total = totalMatch ? parseFloat(totalMatch[1]) : 0.0;
+      const total = totalMatch ? parseFloat(totalMatch[1].replace(',', '.')) : 0.0;
+      const tax = taxMatch ? parseFloat(taxMatch[1].replace(',', '.')) : 0.0;
+      const tip = tipMatch ? parseFloat(tipMatch[1].replace(',', '.')) : 0.0;
 
       return {
         merchantInfo: {
           name: merchantMatch ? merchantMatch[1] : 'Unknown Merchant',
-          phone_number: '',
-          address: '',
-          confidence: 0.3,
+          phone_number: phoneMatch ? phoneMatch[1] : '',
+          address: addressMatch ? addressMatch[1] : '',
+          confidence: merchantMatch ? 0.5 : 0.2,
         },
         transactionInfo: {
-          date: this.formatDate(currentISO),
-          confidence: 0.3,
+          date: dateMatch ? this.formatDate(dateMatch[1]) : this.formatDate(currentISO),
+          confidence: dateMatch ? 0.5 : 0.2,
         },
-        lineItems: [
+        lineItems: extractedItems.length > 0 ? extractedItems : [
           {
-            name: 'Item (parsing failed)',
+            name: 'Item (parsing incomplete)',
             itemprice: total,
             linetotal: total,
             quantity: 1,
-            category: 'Other', // Use a valid category
+            category: 'Other',
             categoryConfidence: 0.3,
             confidence: 0.3,
           },
         ],
         totals: {
-          subtotal: total, // <-- ADD THIS
-          tax: 0.0,
-          tip: 0.0,
+          subtotal: total - tax - tip,
           total: total,
-          confidence: 0.3,
+          tax: tax,
+          tip: tip,
+          confidence: totalMatch ? 0.5 : 0.2,
         },
         paymentInfo: {
-          method: 'unknown',
-          confidence: 0.3,
+          method: methodMatch ? methodMatch[1] : 'unknown',
+          confidence: methodMatch ? 0.5 : 0.2,
         },
         metadata: {
           currency: 'ZAR',
@@ -508,7 +612,7 @@ IMPORTANT: Return the complete JSON structure above with actual data. Ensure it 
           imageUri: '',
           documentType: 'receipt',
         },
-        rawFields: { rawText: responseText.slice(0, 500) }, // Truncate
+        rawFields: { rawText: responseText.slice(0, 1000) }, // More context for debugging
       };
     } catch (error) {
       console.error('Failed to create fallback structure:', error);
@@ -553,9 +657,8 @@ IMPORTANT: Return the complete JSON structure above with actual data. Ensure it 
           confidence: 0.75,
         },
       ],
-      // (Mock subtotal is 5.99 + 7.00 = 12.99)
-      // (Mock total is 12.99 subtotal + 1.04 tax + 2.00 tip = 16.03)
-      totals: { subtotal: 12.99, tax: 1.04, tip: 2.00, total: 16.03, confidence: 0.9 },
+      // (Mock total is now 5.99 + 7.00 + 1.04 tax + 2.00 tip = 16.03)
+      totals: { subtotal: 12.99, total: 16.03, tax: 1.04, tip: 2.00, confidence: 0.9 },
       paymentInfo: { method: 'credit_card', confidence: 0.6 },
       metadata: {
         currency: 'ZAR',
