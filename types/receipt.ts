@@ -1,7 +1,7 @@
 /**
- * Clean Receipt Data Types for SlipScan (No Categorization)
+ * Clean Receipt Data Types for SlipScan with Categorization
  * 
- * This file defines TypeScript interfaces for receipt processing without categorization.
+ * This file defines TypeScript interfaces for receipt processing with item categorization.
  */
 
 // Base interfaces for receipt processing workflow
@@ -89,6 +89,9 @@ export interface ReceiptLineItem {
   sku?: string;
   taxable?: boolean;
   confidence: number;
+  // Category fields
+  category?: string;
+  categoryConfidence?: number;
 }
 
 export interface ReceiptTotals {

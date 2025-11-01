@@ -85,6 +85,8 @@ export interface ReceiptItem {
   itemPrice: number;  // Unit price
   lineTotal: number;  // Total for this line item
   confidence: number;
+  category?: string;  // Category name (matches budget categories)
+  categoryConfidence?: number;  // AI confidence in category assignment
 }
 
 export interface User {
