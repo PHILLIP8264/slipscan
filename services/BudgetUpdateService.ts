@@ -46,23 +46,16 @@ class BudgetUpdateService {
    * Find or create a budget for the given month-year
    */
   private async findOrCreateMonthlyBudget(monthYear: string, userId: string): Promise<Budget> {
-    console.log('🗓️ Looking for budget for month:', monthYear);
-    
     // Try to find existing budget for this user and month
     const existingBudget = await this.getUserBudgetByMonth(userId, monthYear);
     
     if (existingBudget) {
-      console.log('✅ Found existing budget:', existingBudget._id);
       return existingBudget;
     }
 
-    console.log('➕ No budget found, creating new budget for:', monthYear);
-    
     // Initialize categories if needed
     await initializeBudgetCategories();
     const categories = await listCategories();
-    
-    console.log('📋 AVAILABLE CATEGORIES FOR BUDGET:', categories.map(cat => ({ id: cat._id, name: cat.name, budgetAmount: cat.budgetAmount })));
     
     // Create category budgets with proper initial budget amounts from categories
     const categoryBudgets: CategoryBudget[] = categories.map(category => ({
@@ -72,8 +65,6 @@ class BudgetUpdateService {
       spent: 0,
       remainingAmount: category.budgetAmount || 0 // Initially equals budgetAmount
     }));
-    
-    console.log('💰 CREATING BUDGET WITH CATEGORIES:', categoryBudgets.map(cb => ({ id: cb.categoryId, name: cb.categoryName, amount: cb.budgetAmount })));
 
     // Create new budget with user linking
     const newBudget = await createBudget({
@@ -148,34 +139,21 @@ class BudgetUpdateService {
     isReversal: boolean = false
   ): Promise<BudgetUpdateResult> {
     try {
-      console.log(`💰 ${isReversal ? 'REVERSING' : 'APPLYING'} budget update for receipt`);
+
       
       // Extract date and get month-year
       const receiptDate = 'date' in receipt ? receipt.date : new Date(receipt.transaction?.date || receipt.createdAt);
       const monthYear = this.getMonthYearFromDate(receiptDate);
-      
-      console.log('📅 Receipt date:', receiptDate, '→ Month-Year:', monthYear);
 
       // Find or create budget for this month
       const budget = await this.findOrCreateMonthlyBudget(monthYear, userId);
 
       // Extract items from receipt
       const items = this.extractItemsFromReceipt(receipt);
-      console.log('📦 Processing', items.length, 'items');
-      console.log('📋 ITEMS BREAKDOWN:', items.map(item => ({
-        name: item.name,
-        category: item.category,
-        lineTotal: item.lineTotal,
-        quantity: item.quantity
-      })));
-
       // CRITICAL CHECK: Do items have categories?
       const itemsWithCategories = items.filter(item => item.category);
-      console.log('🔍 CRITICAL CHECK - Items with categories:', itemsWithCategories.length, 'out of', items.length);
       
       if (itemsWithCategories.length === 0) {
-        console.log('🚨 CRITICAL ISSUE: NO ITEMS HAVE CATEGORIES! Budget update will not work.');
-        console.log('🚨 All items:', items.map(item => ({ name: item.name, category: item.category })));
         return {
           success: false,
           error: 'No items have categories - budget cannot be updated'
@@ -192,48 +170,60 @@ class BudgetUpdateService {
           continue;
         }
 
-        // Find matching category in budget (try both by name and by ID for better consistency)
-        console.log('🔍 LOOKING FOR CATEGORY:', item.category);
-        console.log('🔍 AVAILABLE BUDGET CATEGORIES:', budget.categoryBudgets.map(cb => cb.categoryName));
+        // Find matching category in budget - case insensitive matching
+        let categoryBudget = budget.categoryBudgets.find(cb => 
+          cb.categoryName.toLowerCase().trim() === item.category!.toLowerCase().trim()
+        );
         
-        let categoryBudget = budget.categoryBudgets.find(cb => cb.categoryName === item.category);
-        
-        // If not found by name, try to find by category ID (more reliable)
-        if (!categoryBudget && item.category) {
-          console.log('🔍 Category not found by name, trying by ID...');
-          // First try to get the actual category to get its ID
+        // If still not found, try to find by category ID
+        if (!categoryBudget) {
           const categories = await listCategories();
-          console.log('🔍 AVAILABLE CATEGORIES:', categories.map((cat: any) => ({ id: cat._id, name: cat.name })));
-          const category = categories.find((cat: any) => cat.name === item.category); // Fixed: use cat.name instead of cat.categoryName
+          const category = categories.find((cat: any) => 
+            cat.name.toLowerCase().trim() === item.category!.toLowerCase().trim()
+          );
           if (category) {
-            console.log('🔍 Found category by name, now looking for budget category by ID:', category._id);
             categoryBudget = budget.categoryBudgets.find(cb => cb.categoryId === category._id);
           }
         }
         
         if (!categoryBudget) {
-          console.log('⚠️ Category not found in budget:', item.category);
-          console.log('⚠️ Available categories in budget:', budget.categoryBudgets.map(cb => ({ id: cb.categoryId, name: cb.categoryName })));
-          continue;
+          // Category doesn't exist in budget - dynamically add it
+          const categories = await listCategories();
+          let category = categories.find((cat: any) => 
+            cat.name.toLowerCase().trim() === item.category!.toLowerCase().trim()
+          );
+          
+          if (!category) {
+            // Category doesn't exist in database either - create it
+            const { createCategory } = await import('../utils/CRUD/categorycrud');
+            category = await createCategory({
+              name: item.category!,
+              color: '#8E8E93', // Default gray color
+              budgetAmount: 100 // Default budget amount
+            });
+          }
+          
+          // Add the category to this budget
+          const newCategoryBudget = {
+            categoryId: category._id,
+            categoryName: category.name,
+            budgetAmount: category.budgetAmount || 100,
+            spent: 0,
+            remainingAmount: category.budgetAmount || 100
+          };
+          
+          budget.categoryBudgets.push(newCategoryBudget);
+          categoryBudget = newCategoryBudget;
         }
-        
-        console.log('✅ Found category budget:', categoryBudget.categoryName);
-
         // Calculate spending change (negative for reversal)
         const spendingChange = isReversal ? -item.lineTotal : item.lineTotal;
-        
-        console.log(`💸 ${item.category}: ${isReversal ? 'reversing' : 'applying'} R${Math.abs(spendingChange)}`);
-        console.log(`📊 BEFORE UPDATE - ${item.category}: budgetAmount=R${categoryBudget.budgetAmount}, spent=R${categoryBudget.spent}, remaining=R${categoryBudget.remainingAmount}`);
 
         // Update category spending
         categoryBudget.spent += spendingChange;
         categoryBudget.remainingAmount = categoryBudget.budgetAmount - categoryBudget.spent;
-        
-        console.log(`📊 AFTER UPDATE - ${item.category}: budgetAmount=R${categoryBudget.budgetAmount}, spent=R${categoryBudget.spent}, remaining=R${categoryBudget.remainingAmount}`);
 
         // Check for overspending
         if (categoryBudget.remainingAmount < 0) {
-          console.log(`🚨 OVERSPENDING DETECTED - ${categoryBudget.categoryName}: overspent by R${Math.abs(categoryBudget.remainingAmount)}`);
           overspentCategories.push({
             categoryName: categoryBudget.categoryName,
             overspentAmount: Math.abs(categoryBudget.remainingAmount)
@@ -242,15 +232,9 @@ class BudgetUpdateService {
       }
 
       // Save updated budget
-      console.log('💾 SAVING BUDGET UPDATE...');
-      console.log('💾 Budget ID:', budget._id);
-      console.log('💾 Updated category budgets:', budget.categoryBudgets);
-      
       const savedBudget = await updateBudget(budget._id, {
         categoryBudgets: budget.categoryBudgets
       });
-
-      console.log('✅ Budget saved successfully:', !!savedBudget);
       if (!savedBudget) {
         throw new Error('Failed to save budget update');
       }
@@ -319,41 +303,16 @@ class BudgetUpdateService {
    * Extract standardized items from either Receipt or ProcessedReceipt
    */
   private extractItemsFromReceipt(receipt: Receipt | ProcessedReceipt): ReceiptItem[] {
-    console.log('🔍 EXTRACTING ITEMS - Receipt type check:', {
-      hasItems: 'items' in receipt,
-      isArray: 'items' in receipt && Array.isArray(receipt.items),
-      itemsLength: 'items' in receipt ? receipt.items?.length : 0
-    });
-
     if ('items' in receipt && Array.isArray(receipt.items)) {
       // Handle Receipt format
       if (receipt.items.length > 0 && 'lineTotal' in receipt.items[0]) {
-        console.log('📝 Using Receipt format items');
-        console.log('📝 RECEIPT FORMAT ITEMS:', JSON.stringify(receipt.items, null, 2));
-        
-        // Check each item for categories
-        receipt.items.forEach((item, index) => {
-          console.log(`📝 RECEIPT ITEM ${index + 1}:`, {
-            name: (item as any).name,
-            category: (item as any).category,
-            lineTotal: (item as any).lineTotal,
-            hasCategory: !!(item as any).category
-          });
-        });
-        
         const hasCategories = receipt.items.some(item => (item as any).category);
-        console.log('📝 Receipt items have categories:', hasCategories);
-        
         if (hasCategories) {
           return receipt.items as ReceiptItem[];
-        } else {
-          console.log('⚠️ Receipt format items missing categories, falling back to conversion...');
         }
       }
       
       // Handle ProcessedReceipt format - convert to ReceiptItem format
-      console.log('📝 Converting ProcessedReceipt format to ReceiptItem format');
-      console.log('🔍 RAW ITEMS from ProcessedReceipt:', JSON.stringify(receipt.items, null, 2));
       
       const convertedItems = (receipt as ProcessedReceipt).items.map((item, index) => {
         // Try multiple field names for line total
@@ -363,17 +322,6 @@ class BudgetUpdateService {
                          ((item as any).itemprice * (item.quantity || 1)) || 
                          0;
                          
-        console.log(`🔍 ITEM ${index + 1} CONVERSION:`, {
-          name: item.name,
-          category: (item as any).category,
-          linetotal: (item as any).linetotal,
-          lineTotal_field: (item as any).lineTotal,
-          totalPrice: item.totalPrice,
-          itemprice: (item as any).itemprice,
-          quantity: item.quantity,
-          calculated_lineTotal: lineTotal
-        });
-        
         return {
           name: item.name,
           quantity: item.quantity || 1,
@@ -385,11 +333,9 @@ class BudgetUpdateService {
         };
       });
       
-      console.log('📝 CONVERTED ITEMS:', JSON.stringify(convertedItems, null, 2));
       return convertedItems;
     }
 
-    console.log('⚠️ No items found in receipt');
     return [];
   }
 

@@ -102,6 +102,7 @@ export function getHardcodedCategories() {
     { name: 'Fuel', color: '#FF6B35', budgetAmount: 150 },
     { name: 'Insurance', color: '#5AC8FA', budgetAmount: 200 },
     { name: 'Subscriptions', color: '#8E8E93', budgetAmount: 100 },
+    { name: 'Other', color: '#8E8E93', budgetAmount: 100 },
   ];
 }
 
