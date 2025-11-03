@@ -216,7 +216,9 @@ class BudgetUpdateService {
           categoryBudget = newCategoryBudget;
         }
         // Calculate spending change (negative for reversal)
-        const spendingChange = isReversal ? -item.lineTotal : item.lineTotal;
+        // Remove 15% VAT if it's included in the line total
+        const preVATAmount = item.lineTotal / 1.15; // Remove South African 15% VAT
+        const spendingChange = isReversal ? -preVATAmount : preVATAmount;
 
         // Update category spending
         categoryBudget.spent += spendingChange;
