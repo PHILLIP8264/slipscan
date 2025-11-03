@@ -55,10 +55,10 @@ export default function ScanReceipt() {
           const imageUriParam = encodeURIComponent(result.pages[0].imageUri || "");
           
           // Navigate immediately - processing will happen on EditReceiptModern page
-          router.push(`/EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
+          router.push(`./EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
         } catch (err) {
           console.error('Failed to navigate to EditReceiptModern:', err);
-          router.push('/EditReceiptModern');
+          router.push('./EditReceiptModern');
         }
       } else {
         Alert.alert(
@@ -109,10 +109,10 @@ export default function ScanReceipt() {
         try {
           const receiptDataParam = encodeURIComponent(JSON.stringify(receiptData));
           const imageUriParam = encodeURIComponent(result.pages[0].imageUri);
-          router.push(`/EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
+          router.push(`./EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
         } catch (err) {
           console.error('Failed to serialize receipt data:', err);
-          router.push('/EditReceiptModern');
+          router.push('./EditReceiptModern');
         }
       } else {
         Alert.alert(
@@ -147,10 +147,10 @@ export default function ScanReceipt() {
                 };
                 const receiptDataParam = encodeURIComponent(JSON.stringify(minimalData));
                 const imageUriParam = encodeURIComponent(result.pages[0]?.imageUri || "");
-                router.push(`/EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
+                router.push(`./EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
               } catch (err) {
                 console.error('Failed to navigate to EditReceiptModern:', err);
-                router.push('/EditReceiptModern');
+                router.push('./EditReceiptModern');
               }
             },
           },

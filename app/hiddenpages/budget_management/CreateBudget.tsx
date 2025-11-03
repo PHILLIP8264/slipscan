@@ -2,27 +2,30 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import {
-  AddCategoryModal,
-  CategoryBudgetItem,
-  CategoryDropdown
+    AddCategoryModal,
+    CategoryBudgetItem,
+    CategoryDropdown
 } from '../../../assets/components/budget';
-import { createBudget, listBudgets } from '../../../utils/CRUD/budgetcrud';
+import { createBudget, getUserBudgets } from '../../../utils/CRUD/budgetcrud';
 import { createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
+import { getUserByEmail } from '../../../utils/CRUD/usercrud';
 import { Category, CategoryBudget } from '../../../utils/localdb';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function CreateBudget() {
+  const { authState } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
@@ -30,10 +33,17 @@ export default function CreateBudget() {
   const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudget[]>([]);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadCategories();
-  }, []);
+    loadCurrentUser();
+  }, [authState.lastUserEmail]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      loadCategories();
+    }
+  }, [currentUserId]);
 
   const loadCategories = async () => {
     try {
@@ -48,12 +58,30 @@ export default function CreateBudget() {
     }
   };
 
+  const loadCurrentUser = async () => {
+    try {
+      if (authState.lastUserEmail) {
+        const user = await getUserByEmail(authState.lastUserEmail);
+        if (user) {
+          setCurrentUserId(user._id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading current user:", error);
+      Alert.alert('Error', 'Please log in to create budgets');
+      router.back();
+    }
+  };
+
   const formatMonthForStorage = (date: Date) => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    // Use "Month Year" format to match our fixed budget system
+    const monthName = date.toLocaleString('en-US', { month: 'long' });
+    const year = date.getFullYear();
+    return `${monthName} ${year}`;
   };
 
   const formatMonthForDisplay = (date: Date) => {
-    return date.toLocaleDateString('eu-ZA', { year: 'numeric', month: 'long' });
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
   };
 
   const handleMonthChange = (year: number, month: number) => {
@@ -199,11 +227,32 @@ export default function CreateBudget() {
     }
 
     try {
+      if (!currentUserId) {
+        Alert.alert('Error', 'Please log in to create budgets');
+        return;
+      }
+
       setLoading(true);
       
+      const monthString = formatMonthForStorage(selectedMonth);
+      
+      // Check if budget already exists for this month
+      const existingBudgets = await getUserBudgets(currentUserId);
+      const existingBudget = existingBudgets.find(budget => budget.month === monthString);
+      
+      if (existingBudget) {
+        Alert.alert(
+          'Budget Already Exists', 
+          `A budget for ${monthString} already exists. Please edit the existing budget or choose a different month.`
+        );
+        setLoading(false);
+        return;
+      }
+      
       const budgetData = {
-        month: formatMonthForStorage(selectedMonth),
-        categoryBudgets: categoryBudgets
+        month: monthString,
+        categoryBudgets: categoryBudgets,
+        userId: currentUserId // Link budget to current user
       };
       
       console.log('Creating budget with data:', budgetData);
@@ -212,10 +261,10 @@ export default function CreateBudget() {
       
       console.log('Budget created successfully:', createdBudget);
       
-      // Verify the budget was saved by checking the database
-      const allBudgets = await listBudgets();
-      console.log('All budgets after creation:', allBudgets);
-      console.log('Total budgets count:', allBudgets.length);
+      // Verify the budget was saved by checking user's budgets
+      const userBudgets = await getUserBudgets(currentUserId);
+      console.log('User budgets after creation:', userBudgets);
+      console.log('User budgets count:', userBudgets.length);
 
       Alert.alert(
         'Success', 

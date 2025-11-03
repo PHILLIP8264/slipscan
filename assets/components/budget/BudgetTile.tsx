@@ -21,9 +21,15 @@ export const BudgetTile: React.FC<BudgetTileProps> = ({ budget, onEdit, onDelete
 
   const formatMonth = (monthString: string) => {
     try {
-      // Assuming month is in format "YYYY-MM" or "MM/YYYY" or similar
+      // Handle "Month Year" format (e.g., "November 2025")
+      if (monthString.includes(' ')) {
+        // Already in correct format, just return it
+        return monthString;
+      }
+      
+      // Handle legacy "YYYY-MM" format if it exists
       const date = new Date(monthString + '-01'); // Add day to make it a valid date
-      return date.toLocaleDateString('eu-ZA', { 
+      return date.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long' 
       });

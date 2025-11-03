@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import PieChart from "react-native-pie-chart";
-import { getBudgetByMonth } from "../../../utils/CRUD/budgetcrud";
+import { useAuth } from "../../../app/contexts/AuthContext";
+import { getUserBudgetByMonth } from "../../../utils/CRUD/budgetcrud";
+import { getUserByEmail } from "../../../utils/CRUD/usercrud";
 import { CategoryBudget } from "../../../utils/localdb";
 
 interface PieChartData {
@@ -24,25 +26,66 @@ const CATEGORY_COLORS = [
   "#FF6348", // Orange
 ];
 
-export default function BudgetPieChart() {
+interface BudgetPieChartProps {
+  userId?: string | null;
+}
+
+export default function BudgetPieChart({ userId }: BudgetPieChartProps) {
+  const { authState } = useAuth();
   const [chartData, setChartData] = useState<PieChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(userId || null);
 
   useEffect(() => {
-    loadBudgetData();
-  }, []);
+    if (userId) {
+      setCurrentUserId(userId);
+    } else {
+      loadCurrentUser();
+    }
+  }, [userId, authState.lastUserEmail]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      loadBudgetData();
+    }
+  }, [currentUserId]);
+
+  const loadCurrentUser = async () => {
+    try {
+      if (authState.lastUserEmail) {
+        const user = await getUserByEmail(authState.lastUserEmail);
+        if (user) {
+          setCurrentUserId(user._id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading current user:", error);
+      setCurrentUserId(null);
+    }
+  };
 
   const loadBudgetData = async () => {
     try {
+      if (!currentUserId) {
+        setChartData([
+          { value: 100, color: "#E0E0E0", label: "No Budget Set" }
+        ]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
-      // Get current month in YYYY-MM format
-      const currentMonth = new Date().toISOString().slice(0, 7);
+      // Get current month in "Month Year" format
+      const currentDate = new Date();
+      const monthName = currentDate.toLocaleString('en-US', { month: 'long' });
+      const year = currentDate.getFullYear();
+      const monthYear = `${monthName} ${year}`;
       
       // Fetch budget data for current month
-      const budget = await getBudgetByMonth(currentMonth);
+      const budget = await getUserBudgetByMonth(currentUserId, monthYear);
       
       if (budget && budget.categoryBudgets && budget.categoryBudgets.length > 0) {
         // Convert category budgets to chart data

@@ -191,8 +191,8 @@ export default function SearchPage() {
   };
 
   const handleReceiptPress = (receipt: Receipt) => {
-    // Navigate to receipt details/edit page
-    router.push(`/EditReceiptModern?id=${receipt._id}`);
+    // Navigate to receipt details page (for viewing/editing existing receipts)
+    router.push(`../components/ReceiptDetails?id=${receipt._id}`);
   };
 
   const getSearchStats = () => {

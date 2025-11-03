@@ -131,3 +131,17 @@ export async function initializeBudgetCategories(): Promise<void> {
     throw error;
   }
 }
+
+// Get category by name
+export async function getCategoryByName(name: string): Promise<Category | null> {
+  try {
+    const categories = await NoSQLDB.queryDocuments<Category>(
+      COLLECTIONS.CATEGORIES,
+      (category) => category.name === name
+    );
+    return categories.length > 0 ? categories[0] : null;
+  } catch (error) {
+    console.error("Error getting category by name:", error);
+    throw error;
+  }
+}

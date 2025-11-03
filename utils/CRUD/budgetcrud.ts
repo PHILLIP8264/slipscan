@@ -19,6 +19,7 @@ export function calculateRemainingBudget(categoryBudgets: CategoryBudget[]): num
 export async function createBudget(budgetData: {
   month: string;
   categoryBudgets: CategoryBudget[];
+  userId?: string;
 }): Promise<Budget> {
   try {
     console.log('createBudget called with:', budgetData);
@@ -41,10 +42,38 @@ export async function createBudget(budgetData: {
     
     console.log('Budget saved to database:', result);
     
+    // If userId is provided, link the budget to the user
+    if (budgetData.userId) {
+      await linkBudgetToUser(budgetData.userId, result._id);
+    }
+    
     return result;
   } catch (error) {
     console.error("Error creating budget:", error);
     throw error;
+  }
+}
+
+// Helper function to link budget to user (add to user's budgetIds)
+async function linkBudgetToUser(userId: string, budgetId: string): Promise<void> {
+  try {
+    const { getUserById, updateUser } = await import('./usercrud');
+    const user = await getUserById(userId);
+    
+    if (user) {
+      if (!user.budgetIds) {
+        user.budgetIds = [];
+      }
+      
+      if (!user.budgetIds.includes(budgetId)) {
+        user.budgetIds.push(budgetId);
+        await updateUser(userId, { budgetIds: user.budgetIds } as any);
+        console.log(`🔗 Linked budget ${budgetId} to user ${userId}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error linking budget to user:', error);
+    // Don't throw here as budget was created successfully
   }
 }
 
@@ -312,6 +341,113 @@ export async function setupMockData(): Promise<void> {
     console.log('Mock budget data created successfully!');
   } catch (error) {
     console.error('Error setting up mock data:', error);
+    throw error;
+  }
+}
+
+// Get all budgets for a specific user
+export async function getUserBudgets(userId: string): Promise<Budget[]> {
+  try {
+    const user = await NoSQLDB.getDocumentById<any>(COLLECTIONS.USERS, userId);
+    if (!user || !user.budgetIds) {
+      return [];
+    }
+
+    const budgets = await Promise.all(
+      user.budgetIds.map((budgetId: string) => 
+        NoSQLDB.getDocumentById<Budget>(COLLECTIONS.BUDGETS, budgetId)
+      )
+    );
+
+    return budgets.filter(Boolean) as Budget[];
+  } catch (error) {
+    console.error("Error getting user budgets:", error);
+    throw error;
+  }
+}
+
+// Get user's budget for a specific month
+export async function getUserBudgetByMonth(userId: string, month: string): Promise<Budget | null> {
+  try {
+    const userBudgets = await getUserBudgets(userId);
+    return userBudgets.find(budget => budget.month === month) || null;
+  } catch (error) {
+    console.error("Error getting user budget by month:", error);
+    throw error;
+  }
+}
+
+// Update budget amounts for all categories in a budget
+export async function updateBudgetAmounts(
+  budgetId: string,
+  categoryBudgetAmounts: { categoryId: string; budgetAmount: number }[]
+): Promise<Budget | null> {
+  try {
+    const budget = await getBudgetById(budgetId);
+    if (!budget) return null;
+    
+    const updatedCategoryBudgets = budget.categoryBudgets.map(catBudget => {
+      const update = categoryBudgetAmounts.find(u => u.categoryId === catBudget.categoryId);
+      if (update) {
+        return {
+          ...catBudget,
+          budgetAmount: update.budgetAmount,
+          remainingAmount: update.budgetAmount - catBudget.spent
+        };
+      }
+      return catBudget;
+    });
+    
+    return await updateBudget(budgetId, { categoryBudgets: updatedCategoryBudgets });
+  } catch (error) {
+    console.error("Error updating budget amounts:", error);
+    throw error;
+  }
+}
+
+// Get budget summary for user (across all months)
+export async function getUserBudgetSummary(userId: string): Promise<{
+  totalBudgets: number;
+  totalSpent: number;
+  totalRemaining: number;
+  monthlyBudgets: Budget[];
+}> {
+  try {
+    const userBudgets = await getUserBudgets(userId);
+    
+    const totalBudgets = userBudgets.reduce((sum, budget) => sum + budget.totalBudget, 0);
+    const totalSpent = userBudgets.reduce((sum, budget) => 
+      sum + budget.categoryBudgets.reduce((catSum, cat) => catSum + cat.spent, 0), 0
+    );
+    const totalRemaining = userBudgets.reduce((sum, budget) => sum + budget.remainingBudget, 0);
+    
+    return {
+      totalBudgets,
+      totalSpent,
+      totalRemaining,
+      monthlyBudgets: userBudgets.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+    };
+  } catch (error) {
+    console.error("Error getting user budget summary:", error);
+    throw error;
+  }
+}
+
+/**
+ * Clear all budgets from database (for fixing budget issues)
+ */
+export async function clearAllBudgets(): Promise<void> {
+  try {
+    console.log('🗑️ Clearing all budgets from database...');
+    
+    // Use the NoSQLDB clearAllBudgets method
+    await NoSQLDB.clearAllBudgets();
+    
+    console.log('✅ All budgets cleared successfully');
+  } catch (error) {
+    console.error("❌ Error clearing all budgets:", error);
     throw error;
   }
 }

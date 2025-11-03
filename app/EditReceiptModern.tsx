@@ -19,9 +19,8 @@ import {
 import receiptProcessingService from "../services/ReceiptProcessingService";
 import { ProcessedReceipt } from "../types/receipt";
 import { initializeBudgetCategories, listCategories } from "../utils/CRUD/categorycrud";
-import { getReceiptById } from "../utils/CRUD/receiptcrud";
-import { createUser, getUserByEmail } from "../utils/CRUD/usercrud";
-import { Category, RelationshipHelpers, convertLocalReceiptToProcessed } from "../utils/localdb";
+import { Category } from "../utils/localdb";
+import receiptBudgetIntegration from "../utils/ReceiptBudgetIntegration";
 import { useAuth } from "./contexts/AuthContext";
 
 interface ProcessingState {
@@ -30,6 +29,7 @@ interface ProcessingState {
   progress: number;
 }
 
+console.log("heeeerererrerererrererererrerer");
 export default function EditReceipt() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -49,9 +49,7 @@ export default function EditReceipt() {
   const [editableData, setEditableData] = useState<Partial<ProcessedReceipt>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [showImagePreview, setShowImagePreview] = useState(false);
-  const [isExistingReceipt, setIsExistingReceipt] = useState(false);
 
   // Category state
   const [categories, setCategories] = useState<Category[]>([]);
@@ -98,35 +96,6 @@ export default function EditReceipt() {
 
   const initializeReceipt = async () => {
     try {
-      // Check if we have a receipt ID to load an existing receipt
-      if (params.id) {
-        console.log('Loading existing receipt with ID:', params.id);
-        const existingReceipt = await getReceiptById(params.id as string);
-        
-        if (existingReceipt) {
-          console.log('🔍 LOAD DEBUG - Raw receipt from database:', JSON.stringify(existingReceipt, null, 2));
-          
-          // Convert Receipt to ProcessedReceipt format using helper function
-          const processedReceiptData = convertLocalReceiptToProcessed(existingReceipt);
-          
-          console.log('🔄 LOAD DEBUG - Converted ProcessedReceipt:', JSON.stringify(processedReceiptData, null, 2));
-          
-          setProcessedReceipt(processedReceiptData);
-          setEditableData(processedReceiptData);
-          setOriginalImageUri(existingReceipt.imageUrl || '');
-          setIsExistingReceipt(true); // Mark as existing receipt
-          setIsProcessing(false);
-          setProcessingState({
-            stage: 'complete',
-            message: 'Receipt loaded successfully!',
-            progress: 1.0
-          });
-          return;
-        } else {
-          throw new Error('Receipt not found');
-        }
-      }
-
       // Check if we have pre-processed data
       if (params.receiptData) {
         let decoded: string;
@@ -204,10 +173,27 @@ export default function EditReceipt() {
         setProcessedReceipt(result.receipt);
         setEditableData(result.receipt);
         
+        // FORCE CATEGORIES FOR TESTING - ADD DEFAULT CATEGORIES TO ITEMS WITHOUT THEM
+        const receiptWithCategories = { ...result.receipt };
+        if (receiptWithCategories.items) {
+          receiptWithCategories.items = receiptWithCategories.items.map((item: any, index: number) => {
+            const defaultCategories = ['Groceries', 'Restaurant', 'Transport', 'Entertainment'];
+            return {
+              ...item,
+              category: item.category || defaultCategories[index % defaultCategories.length],
+              categoryConfidence: item.categoryConfidence || 0.7
+            };
+          });
+        }
+        
+        // Update the state with categorized items
+        setProcessedReceipt(receiptWithCategories);
+        setEditableData(receiptWithCategories);
+        
         // Show JSON structure alert for debugging
         Alert.alert(
-          "📋 Parsed JSON Structure", 
-          JSON.stringify(result.receipt, null, 2),
+          "📋 Parsed JSON Structure (WITH FORCED CATEGORIES)", 
+          JSON.stringify(receiptWithCategories, null, 2),
           [{ text: "OK" }]
         );
         
@@ -255,142 +241,55 @@ export default function EditReceipt() {
     return result;
   };
 
-  const handleSaveReceipt = async () => {
-    if (!editableData) return;
+const handleSaveReceipt = async () => {
+  // 1. Safety check: Exit if no data to save
+  if (!editableData) return;
 
-    try {
-      setIsSaving(true);
-      
-      console.log('📦 SAVE DEBUG - Original processedReceipt:', JSON.stringify(processedReceipt, null, 2));
-      console.log('✏️ SAVE DEBUG - Editable data:', JSON.stringify(editableData, null, 2));
-      
-      // Create final receipt with proper deep merging to preserve all data
-      const finalReceipt: ProcessedReceipt = deepMerge(processedReceipt!, {
-        ...editableData,
-        updatedAt: new Date().toISOString(),
-      });
+  try {
+    setIsSaving(true);
+    
+    // 2. Combine original parsed data with user edits
+    const finalReceipt: ProcessedReceipt = deepMerge(processedReceipt!, {
+      ...editableData,
+      updatedAt: new Date().toISOString(), // Update timestamp
+    });
 
-      console.log('💾 SAVE DEBUG - Final receipt to be saved:', JSON.stringify(finalReceipt, null, 2));
-      console.log('🔍 SAVE DEBUG - Key fields check:');
-      console.log('  - VAT/Tax:', finalReceipt.totals?.tax);
-      console.log('  - Tip:', finalReceipt.totals?.tip);
-      console.log('  - Payment Method:', finalReceipt.payment?.method);
-      console.log('  - Items with categories:', finalReceipt.items?.map(item => ({ name: (item as any).name, category: (item as any).category })));
-
-      // Get or create user for local database
-      const userEmail = authState.lastUserEmail;
-      if (!userEmail) {
-        throw new Error('No authenticated user found');
-      }
-
-      let user = await getUserByEmail(userEmail);
-      if (!user) {
-        // Create user if doesn't exist
-        user = await createUser({
-          name: authState.lastUserName || 'User',
-          email: userEmail,
-        });
-        console.log('✅ Created new user for email:', userEmail);
-      }
-
-      console.log('💾 Saving to local database for user:', user._id);
-
-      // Save to local database using RelationshipHelpers
-      const savedReceipt = await RelationshipHelpers.addProcessedReceiptToUser(
-        user._id,
-        finalReceipt,
-        finalReceipt.originalImageUri
-      );
-
-      if (!savedReceipt) {
-        throw new Error('Failed to save receipt to local database');
-      }
-
-      console.log('✅ Receipt saved to local database with ID:', savedReceipt._id);
-
-      Alert.alert(
-        "✅ Receipt Saved!",
-        "Your receipt has been successfully saved to your collection.",
-        [
-          {
-            text: "View All Receipts",
-            onPress: () => router.push('/tabs/search')
-          },
-          {
-            text: "Scan Another",
-            onPress: () => router.push('/tabs')
-          }
-        ]
-      );
-    } catch (error) {
-      console.error('Save error:', error);
-      Alert.alert(" Save Failed", "Failed to save receipt. Please try again.");
-    } finally {
-      setIsSaving(false);
+    // 3. Get user context
+    const userEmail = authState.lastUserEmail;
+    if (!userEmail) {
+      throw new Error('No authenticated user found');
     }
-  };
 
-  const handleDeleteReceipt = async () => {
-    if (!processedReceipt?.id || !isExistingReceipt) return;
-
-    Alert.alert(
-      "🗑️ Delete Receipt",
-      "Are you sure you want to delete this receipt? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setIsDeleting(true);
-              
-              console.log('🗑️ DELETE RECEIPT - Starting deletion for receipt ID:', processedReceipt.id);
-              
-              // Get current user
-              const userEmail = authState.lastUserEmail;
-              if (!userEmail) {
-                throw new Error('No authenticated user found');
-              }
-
-              const user = await getUserByEmail(userEmail);
-              if (!user) {
-                throw new Error('User not found in database');
-              }
-              
-              // Delete from database and user relationship
-              const deleted = await RelationshipHelpers.deleteReceiptFromUser(user._id, processedReceipt.id);
-              
-              if (deleted) {
-                console.log('✅ Receipt deleted successfully');
-                
-                Alert.alert(
-                  "✅ Receipt Deleted",
-                  "The receipt has been successfully deleted from your collection.",
-                  [
-                    {
-                      text: "OK",
-                      onPress: () => router.push('/tabs/search') // Go back to search page
-                    }
-                  ]
-                );
-              } else {
-                throw new Error('Failed to delete receipt');
-              }
-            } catch (error) {
-              console.error('Delete error:', error);
-              Alert.alert("❌ Delete Failed", "Failed to delete receipt. Please try again.");
-            } finally {
-              setIsDeleting(false);
-            }
-          }
-        }
-      ]
+    // 4. Save the receipt and update the budget in one go
+    const result = await receiptBudgetIntegration.saveNewReceipt(
+      finalReceipt,
+      userEmail,
+      authState.lastUserName || 'User'
     );
-  };
+    
+    // 5. Handle result
+    if (result.success) {
+      // Navigate to the main list/search view on success
+      router.push('/tabs/search');
+    } else {
+      // Throw error to be caught below
+      throw new Error(result.error || 'Failed to save receipt');
+    }
+
+  } catch (error) {
+    console.error('Save error:', error);
+    // Show a user-friendly error alert
+    receiptBudgetIntegration.showErrorAlert(
+      "❌ Save Failed", 
+      "Failed to save receipt. Please check your network and try again."
+    );
+  } finally {
+    // 6. Reset saving state regardless of success or failure
+    setIsSaving(false);
+  }
+};
+
+
 
   const updateItem = (itemIndex: number, field: string, value: any) => {
     if (!editableData.items) return;
@@ -867,7 +766,9 @@ export default function EditReceipt() {
                         placeholderTextColor="#999"
                       />
                     </View>
-                    </View>                  <View style={styles.confidenceBadge}>
+                  </View>
+                  
+                  <View style={styles.confidenceBadge}>
                     <Text style={styles.confidenceText}>
                       {Math.round(item.confidence * 100)}% confidence
                     </Text>
@@ -909,7 +810,7 @@ export default function EditReceipt() {
             <TouchableOpacity 
               style={[styles.modernSaveButton, isSaving && styles.modernSaveButtonDisabled]}
               onPress={handleSaveReceipt}
-              disabled={isSaving || isDeleting}
+              disabled={isSaving}
             >
               <LinearGradient
                 colors={isSaving ? ['#ccc', '#999'] : ['#667eea', '#764ba2']}
@@ -925,29 +826,6 @@ export default function EditReceipt() {
                 )}
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Delete Button - Only show for existing receipts */}
-            {isExistingReceipt && (
-              <TouchableOpacity 
-                style={[styles.modernDeleteButton, isDeleting && styles.modernDeleteButtonDisabled]}
-                onPress={handleDeleteReceipt}
-                disabled={isDeleting || isSaving}
-              >
-                <LinearGradient
-                  colors={isDeleting ? ['#ccc', '#999'] : ['#ff6b6b', '#ee5a52']}
-                  style={styles.deleteButtonGradient}
-                >
-                  {isDeleting ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="trash-outline" size={24} color="white" />
-                      <Text style={styles.modernDeleteButtonText}>Delete</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
           </View>
 
           <View style={styles.modernBottomSpacing} />
@@ -1628,11 +1506,9 @@ const styles = StyleSheet.create({
   },
   modernActionsContainer: {
     padding: 20,
-    flexDirection: 'row',
-    gap: 12,
   },
   modernSaveButton: {
-    flex: 1,
+    width: '100%',
     borderRadius: 16,
     overflow: 'hidden',
   },

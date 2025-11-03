@@ -234,6 +234,27 @@ export class NoSQLDB {
       throw error;
     }
   }
+
+  // Clear only budgets (useful for fixing budget issues)
+  static async clearAllBudgets(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(COLLECTIONS.BUDGETS);
+      
+      // Also clear budget IDs from all users
+      const users = await this.getCollection<User>(COLLECTIONS.USERS);
+      const updatedUsers = users.map(user => ({
+        ...user,
+        budgetIds: []
+      }));
+      
+      await AsyncStorage.setItem(COLLECTIONS.USERS, JSON.stringify(updatedUsers));
+      
+      console.log('✅ Cleared all budgets and reset user budget links');
+    } catch (error) {
+      console.error("Error clearing budgets:", error);
+      throw error;
+    }
+  }
 }
 
 // Conversion helper to transform ProcessedReceipt to local Receipt format
@@ -412,11 +433,22 @@ export function convertProcessedReceiptToLocal(processedReceipt: any, imageUrl?:
                         (totalAmount - taxAmount);
   
   // Handle items conversion with better mapping
-  const items = (processedReceipt.items || processedReceipt.lineItems || []).map((item: any) => {
+  const items = (processedReceipt.items || processedReceipt.lineItems || []).map((item: any, index: number) => {
     const itemName = item.name || item.description || 'Unknown Item';
     const quantity = item.quantity || 1;
     const unitPrice = item.unitPrice || item.itemprice || item.itemPrice || 0;
     const lineTotal = item.totalPrice || item.linetotal || item.lineTotal || (unitPrice * quantity);
+    
+    console.log(`🔄 CONVERT ITEM ${index + 1}:`, {
+      original_name: item.name,
+      original_category: item.category,
+      original_linetotal: item.linetotal,
+      original_lineTotal: item.lineTotal,
+      original_totalPrice: item.totalPrice,
+      converted_name: itemName,
+      converted_category: item.category,
+      converted_lineTotal: lineTotal
+    });
     
     return {
       name: itemName,
@@ -424,7 +456,7 @@ export function convertProcessedReceiptToLocal(processedReceipt: any, imageUrl?:
       itemPrice: unitPrice,
       lineTotal: lineTotal,
       confidence: item.confidence || 0.8,
-      category: item.category,
+      category: item.category, // This should preserve the category
       categoryConfidence: item.categoryConfidence
     };
   });

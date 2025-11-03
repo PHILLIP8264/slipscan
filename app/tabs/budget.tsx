@@ -16,32 +16,61 @@ import {
 } from '../../assets/components/budget';
 import {
   deleteBudget,
-  listBudgets,
-  setupMockData,
+  getUserBudgets
 } from '../../utils/CRUD/budgetcrud';
 import { initializeBudgetCategories } from '../../utils/CRUD/categorycrud';
+import { getUserByEmail } from '../../utils/CRUD/usercrud';
 import { Budget } from '../../utils/localdb';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function BudgetPage() {
+  const { authState } = useAuth();
   const [selectedTab, setSelectedTab] = useState<BudgetTab>('current');
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadBudgets();
-  }, []);
+    loadCurrentUser();
+  }, [authState.lastUserEmail]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      loadBudgets();
+    }
+  }, [currentUserId]);
 
   // Reload budgets whenever this screen regains focus (so newly created budgets appear immediately)
   useFocusEffect(
     useCallback(() => {
-      // Don't await here directly; call the loader which manages loading state
-      loadBudgets();
-    }, [])
+      if (currentUserId) {
+        loadBudgets();
+      }
+    }, [currentUserId])
   );
+
+  const loadCurrentUser = async () => {
+    try {
+      if (authState.lastUserEmail) {
+        const user = await getUserByEmail(authState.lastUserEmail);
+        if (user) {
+          setCurrentUserId(user._id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading current user:", error);
+      setCurrentUserId(null);
+    }
+  };
 
   const loadBudgets = async (isRefresh = false) => {
     try {
+      if (!currentUserId) {
+        setBudgets([]);
+        return;
+      }
+
       if (isRefresh) {
         setRefreshing(true);
       } else {
@@ -51,15 +80,14 @@ export default function BudgetPage() {
       // Initialize categories first
       await initializeBudgetCategories();
       
-      let allBudgets = await listBudgets();
+      // Get user-specific budgets instead of all budgets
+      let userBudgets = await getUserBudgets(currentUserId);
       
-      //no budgets exist, create mock data for development
-      if (allBudgets.length === 0) {
-        await setupMockData();
-        allBudgets = await listBudgets();
-      }
+      // User has no budgets - this is normal, they can create budgets via the UI
+      // No need for mock data since budgets are created through receipt processing
+      // or manual budget creation
       
-      setBudgets(allBudgets);
+      setBudgets(userBudgets);
     } catch (error) {
       console.error('Error loading budgets:', error);
       Alert.alert('Error', 'Failed to load budgets');
@@ -71,18 +99,34 @@ export default function BudgetPage() {
 
   const filterBudgetsByTab = (budgets: Budget[]): Budget[] => {
     const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthName = now.toLocaleString('en-US', { month: 'long' });
+    const currentYear = now.getFullYear();
+    const currentMonth = `${currentMonthName} ${currentYear}`;
+    
+    const parseMonthYear = (monthStr: string): Date => {
+      try {
+        // Handle "Month Year" format (e.g., "November 2025")
+        const [month, year] = monthStr.split(' ');
+        const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
+        return new Date(parseInt(year), monthIndex, 1);
+      } catch {
+        // Fallback for old format or invalid strings
+        return new Date(monthStr);
+      }
+    };
+
+    const currentDate = parseMonthYear(currentMonth);
     
     const filtered = budgets.filter(budget => {
-      const budgetMonth = budget.month;
+      const budgetDate = parseMonthYear(budget.month);
       
       switch (selectedTab) {
         case 'past':
-          return budgetMonth < currentMonth;
+          return budgetDate < currentDate;
         case 'current':
-          return budgetMonth === currentMonth;
+          return budget.month === currentMonth;
         case 'upcoming':
-          return budgetMonth > currentMonth;
+          return budgetDate > currentDate;
         default:
           return true;
       }
@@ -90,12 +134,15 @@ export default function BudgetPage() {
     
     // Sort budgets by month for proper display order
     filtered.sort((a, b) => {
+      const dateA = parseMonthYear(a.month);
+      const dateB = parseMonthYear(b.month);
+      
       if (selectedTab === 'past') {
         // For past budgets, show most recent first (descending)
-        return b.month.localeCompare(a.month);
+        return dateB.getTime() - dateA.getTime();
       } else {
         // For current and upcoming, show chronological order (ascending)
-        return a.month.localeCompare(b.month);
+        return dateA.getTime() - dateB.getTime();
       }
     });
     
@@ -143,6 +190,7 @@ export default function BudgetPage() {
   };
 
   const onRefresh = () => {
+    loadCurrentUser();
     loadBudgets(true);
   };
 

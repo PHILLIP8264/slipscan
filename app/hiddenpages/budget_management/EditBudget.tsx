@@ -2,28 +2,31 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import {
-  AddCategoryModal,
-  BudgetCategoryBreakdown,
-  CategoryBudgetItem,
-  CategoryDropdown
+    AddCategoryModal,
+    BudgetCategoryBreakdown,
+    CategoryBudgetItem,
+    CategoryDropdown
 } from '../../../assets/components/budget';
-import { getBudgetById, listBudgets, updateBudget } from '../../../utils/CRUD/budgetcrud';
+import { getBudgetById, getUserBudgets, updateBudget } from '../../../utils/CRUD/budgetcrud';
 import { createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
+import { getUserByEmail } from '../../../utils/CRUD/usercrud';
 import { Budget, Category, CategoryBudget } from '../../../utils/localdb';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function EditBudget() {
+  const { authState } = useAuth();
   const params = useLocalSearchParams<{ budgetId: string }>();
   const budgetId = params.budgetId;
 
@@ -37,58 +40,101 @@ export default function EditBudget() {
   const [otherBudgets, setOtherBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (budgetId) {
+    loadCurrentUser();
+  }, [authState.lastUserEmail]);
+
+  useEffect(() => {
+    if (budgetId && currentUserId) {
       loadBudgetData();
     }
-  }, [budgetId]);
+  }, [budgetId, currentUserId]);
+
+  const loadCurrentUser = async () => {
+    try {
+      if (authState.lastUserEmail) {
+        const user = await getUserByEmail(authState.lastUserEmail);
+        if (user) {
+          setCurrentUserId(user._id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading current user:", error);
+      Alert.alert('Error', 'Please log in to edit budgets');
+      router.back();
+    }
+  };
 
   const loadBudgetData = async () => {
     try {
+      if (!currentUserId) {
+        Alert.alert('Error', 'Please log in to edit budgets');
+        router.back();
+        return;
+      }
+
       setInitialLoading(true);
       
-      // Initialize categories first if needed
+      // Initialize categories first
       await initializeBudgetCategories();
-      
-      // Load all required data in parallel
-      const [budget, categories, allBudgets] = await Promise.all([
+      const categories = await listCategories();
+      setAvailableCategories(categories);
+
+      // Load the specific budget and user's budgets
+      const [budget, userBudgets] = await Promise.all([
         getBudgetById(budgetId),
-        listCategories(),
-        listBudgets()
+        getUserBudgets(currentUserId)
       ]);
+      
+      // Security check: Verify the budget belongs to current user
+      if (budget && !userBudgets.find((ub: Budget) => ub._id === budget._id)) {
+        Alert.alert('Access Denied', 'You do not have permission to edit this budget');
+        router.back();
+        return;
+      }
 
       if (!budget) {
-        Alert.alert('Error', 'Budget not found', [
-          { text: 'OK', onPress: () => router.back() }
-        ]);
+        Alert.alert('Error', 'Budget not found');
+        router.back();
         return;
       }
 
       setOriginalBudget(budget);
-      setAvailableCategories(categories);
-      
-      // Parse the month string and set the date
-      const [year, month] = budget.month.split('-').map(Number);
-      setSelectedMonth(new Date(year, month - 1, 1));
-      
-      // Set up category budgets
       setCategoryBudgets(budget.categoryBudgets);
-      setSelectedCategoryIds(budget.categoryBudgets.map(cb => cb.categoryId));
       
-      // Filter out current budget from other budgets
-      setOtherBudgets(allBudgets.filter(b => b._id !== budgetId));
+      // Parse month from "Month Year" format or legacy "YYYY-MM" format
+      let budgetDate = new Date();
+      if (budget.month.includes(' ')) {
+        // "Month Year" format
+        const [monthName, year] = budget.month.split(' ');
+        budgetDate = new Date(`${monthName} 1, ${year}`);
+      } else {
+        // Legacy "YYYY-MM" format
+        budgetDate = new Date(budget.month + '-01');
+      }
+      setSelectedMonth(budgetDate);
+      
+      setSelectedCategoryIds(budget.categoryBudgets.map((cb: CategoryBudget) => cb.categoryId));
+      
+      // Set other budgets for comparison (exclude current budget)
+      setOtherBudgets(userBudgets.filter((b: Budget) => b._id !== budgetId));
       
     } catch (error) {
-      console.error('Error loading budget data:', error);
+      console.error('Error loading budget:', error);
       Alert.alert('Error', 'Failed to load budget data');
+      router.back();
     } finally {
       setInitialLoading(false);
     }
   };
 
   const formatMonthForStorage = (date: Date) => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    // Use "Month Year" format to match our fixed budget system
+    const monthName = date.toLocaleString('en-US', { month: 'long' });
+    const year = date.getFullYear();
+    return `${monthName} ${year}`;
   };
 
   const formatMonthForDisplay = (date: Date) => {

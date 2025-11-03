@@ -15,31 +15,65 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getBudgetByMonth } from '../../utils/CRUD/budgetcrud';
+import { clearAllBudgets, getUserBudgetByMonth } from '../../utils/CRUD/budgetcrud';
+import { getUserByEmail } from '../../utils/CRUD/usercrud';
 import DocumentScanner from '../../utils/DocumentScanner';
 import { Budget } from '../../utils/localdb';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Index() {
   const router = useRouter();
+  const { authState } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
   const [budgetData, setBudgetData] = useState<Budget | null>(null);
   const [loadingBudget, setLoadingBudget] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMockData, setLoadingMockData] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadBudgetData();
-  }, []);
+    loadCurrentUser();
+  }, [authState.lastUserEmail]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      loadBudgetData();
+    }
+  }, [currentUserId]);
+
+  const loadCurrentUser = async () => {
+    try {
+      if (authState.lastUserEmail) {
+        const user = await getUserByEmail(authState.lastUserEmail);
+        if (user) {
+          setCurrentUserId(user._id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading current user:", error);
+      setCurrentUserId(null);
+    }
+  };
 
   const loadBudgetData = async (isRefresh = false) => {
     try {
+      if (!currentUserId) {
+        setBudgetData(null);
+        return;
+      }
+
       if (isRefresh) {
         setRefreshing(true);
       } else {
         setLoadingBudget(true);
       }
-      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-      const budget = await getBudgetByMonth(currentMonth);
+      
+      const currentDate = new Date();
+      const monthName = currentDate.toLocaleString('en-US', { month: 'long' });
+      const year = currentDate.getFullYear();
+      const monthYear = `${monthName} ${year}`;
+      
+      const budget = await getUserBudgetByMonth(currentUserId, monthYear);
       setBudgetData(budget);
     } catch (error) {
       console.error("Error loading budget data:", error);
@@ -54,6 +88,7 @@ export default function Index() {
   };
 
   const onRefresh = () => {
+    loadCurrentUser();
     loadBudgetData(true);
   };
 
@@ -72,9 +107,7 @@ export default function Index() {
   };
 
   const getRemainingBudget = (): number => {
-    const total = getTotalBudget();
-    const spent = getTotalSpent();
-    return total - spent;
+    return budgetData?.remainingBudget || (getTotalBudget() - getTotalSpent());
   };
 
   // Get current month name
@@ -128,10 +161,10 @@ export default function Index() {
             : '';
 
           // Navigate immediately - processing will happen on EditReceiptModern page
-          router.push(`/EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
+          router.push(`../EditReceiptModern?receiptData=${receiptDataParam}&imageUri=${imageUriParam}`);
         } catch (err) {
           console.error('Failed to navigate to EditReceiptModern:', err);
-          router.push('/EditReceiptModern');
+          router.push('../EditReceiptModern');
         }
       } else {
         Alert.alert("ℹ️ No Pages Scanned", "Please try scanning again.");
@@ -148,7 +181,40 @@ export default function Index() {
     }
   };
 
-
+  const handleClearAllBudgets = async () => {
+    Alert.alert(
+      "🗑️ Clear All Budgets",
+      "This will permanently delete ALL budgets from the database. This action cannot be undone.\n\nUse this to fix budget overspending issues caused by test/mock data.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "DELETE ALL",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await clearAllBudgets();
+              setBudgetData(null);
+              Alert.alert(
+                "✅ Success",
+                "All budgets have been cleared from the database. You can now create fresh budgets.",
+                [{ text: "OK" }]
+              );
+            } catch (error) {
+              console.error("Error clearing budgets:", error);
+              Alert.alert(
+                "❌ Error",
+                "Failed to clear budgets. Please try again.",
+                [{ text: "OK" }]
+              );
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -223,7 +289,7 @@ export default function Index() {
           
           {/* Donut Chart */}
           <View style={styles.chartContainer}>
-            <Homepie />
+            <Homepie userId={currentUserId} />
           </View>
         </View>
 
@@ -255,7 +321,14 @@ export default function Index() {
             </Text>
           </TouchableOpacity>
 
-          
+          {/* Clear Budgets Button (Development/Debug) */}
+          <TouchableOpacity
+            style={styles.clearBudgetsButton}
+            onPress={handleClearAllBudgets}
+          >
+            <Ionicons name="trash" size={20} color="#dc2626" />
+            <Text style={styles.clearBudgetsButtonText}>Clear All Budgets</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -424,6 +497,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 6,
+  },
+  // Clear Budgets Button Styles
+  clearBudgetsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  clearBudgetsButtonText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 
 });
