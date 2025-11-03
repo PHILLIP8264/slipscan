@@ -36,7 +36,10 @@ export async function createReceipt(receiptData: {
 // Get a receipt by ID
 export async function getReceiptById(id: string): Promise<Receipt | null> {
   try {
-    return await NoSQLDB.getDocumentById<Receipt>(COLLECTIONS.RECEIPTS, id);
+    console.log('📖 CRUD DEBUG - Getting receipt by ID:', id);
+    const receipt = await NoSQLDB.getDocumentById<Receipt>(COLLECTIONS.RECEIPTS, id);
+    console.log('📖 CRUD DEBUG - Retrieved receipt:', JSON.stringify(receipt, null, 2));
+    return receipt;
   } catch (error) {
     console.error("Error getting receipt by ID:", error);
     throw error;

@@ -81,7 +81,9 @@ class ReceiptProcessingService {
         console.warn('⚠️ Gemini parsing failed, creating fallback structure');
         documentData = this.createFallbackDocument(textData, imageUri);
       } else {
-        documentData = parseResult.data as DocumentAIResult;
+        // Properly map Gemini's ReceiptStructure to DocumentAIResult
+        console.log('🔄 Mapping Gemini ReceiptStructure to DocumentAIResult format');
+        documentData = this.mapReceiptStructureToDocumentAI(parseResult.data, imageUri);
       }
 
       // Step 3: Create ProcessedReceipt object
@@ -266,6 +268,86 @@ class ReceiptProcessingService {
   }
 
   /**
+   * Map Gemini's ReceiptStructure to DocumentAIResult format
+   * This preserves all the original Gemini data while making it compatible
+   */
+  private mapReceiptStructureToDocumentAI(receiptStructure: any, imageUri: string): DocumentAIResult {
+    console.log('🔄 Original Gemini ReceiptStructure:', JSON.stringify(receiptStructure, null, 2));
+    
+    // Debug all possible date locations
+    console.log('📅 GEMINI DATE DEBUG - Checking all date locations:');
+    console.log('  - receiptStructure.transactionInfo?.date:', receiptStructure.transactionInfo?.date);
+    console.log('  - receiptStructure.date:', receiptStructure.date);
+    console.log('  - receiptStructure.transaction?.date:', receiptStructure.transaction?.date);
+    console.log('  - receiptStructure.dateTime:', receiptStructure.dateTime);
+    console.log('  - receiptStructure.receiptDate:', receiptStructure.receiptDate);
+    
+    const mapped: DocumentAIResult = {
+      merchantInfo: {
+        name: receiptStructure.merchantInfo?.name || 'Unknown Merchant',
+        phone_number: receiptStructure.merchantInfo?.phone_number,
+        phone: receiptStructure.merchantInfo?.phone_number, // Also map to phone field
+        address: receiptStructure.merchantInfo?.address,
+        confidence: receiptStructure.merchantInfo?.confidence || 0.5,
+      },
+      transactionInfo: {
+        date: (() => {
+          console.log('📅 DATE PROCESSING - Gemini transactionInfo.date:', receiptStructure.transactionInfo?.date);
+          console.log('📅 DATE PROCESSING - Gemini full transactionInfo:', receiptStructure.transactionInfo);
+          
+          if (receiptStructure.transactionInfo?.date) {
+            console.log('📅 DATE PROCESSING - Using Gemini date:', receiptStructure.transactionInfo.date);
+            return receiptStructure.transactionInfo.date;
+          } else {
+            const currentDate = new Date().toISOString().split('T')[0];
+            console.warn('📅 DATE PROCESSING - No date from Gemini, using current date:', currentDate);
+            return currentDate;
+          }
+        })(),
+        confidence: receiptStructure.transactionInfo?.confidence || 0.5,
+      },
+      lineItems: (receiptStructure.lineItems || []).map((item: any) => ({
+        name: item.name || 'Unknown Item',
+        quantity: item.quantity || 1,
+        totalPrice: item.linetotal || item.itemprice || 0,
+        itemprice: item.itemprice || 0,
+        linetotal: item.linetotal || item.itemprice || 0,
+        confidence: item.confidence || 0.5,
+        // Preserve Gemini's category data
+        category: item.category,
+        categoryConfidence: item.categoryConfidence,
+      })),
+      totals: {
+        subtotal: receiptStructure.totals?.subtotal || 0,
+        tax: receiptStructure.totals?.tax || 0,
+        tip: receiptStructure.totals?.tip || 0,
+        total: receiptStructure.totals?.total || 0,
+        confidence: receiptStructure.totals?.confidence || 0.5,
+      },
+      paymentInfo: {
+        method: receiptStructure.paymentInfo?.method || 'unknown',
+        confidence: receiptStructure.paymentInfo?.confidence || 0.5,
+      },
+      metadata: {
+        currency: receiptStructure.metadata?.currency || 'ZAR',
+        locale: receiptStructure.metadata?.locale || 'en-ZA',
+        processingDate: receiptStructure.metadata?.processingDate || new Date().toISOString(),
+        imageUri: imageUri,
+        documentType: 'receipt' as const,
+      },
+      rawFields: {
+        // Preserve the original raw text from Gemini
+        rawText: receiptStructure.rawFields?.rawText || '',
+        // Also preserve the entire original Gemini response for debugging
+        originalGeminiResponse: receiptStructure,
+      },
+    };
+
+    console.log('✅ Mapped to DocumentAIResult:', JSON.stringify(mapped, null, 2));
+    return mapped;
+  }
+
+  /**
    * Create processed receipt object (no categorization)
    */
   private createProcessedReceipt(
@@ -289,6 +371,9 @@ class ReceiptProcessingService {
       payment: documentData.paymentInfo,
       processingSteps,
       confidence: this.calculateOverallConfidence(processingSteps),
+      // Preserve raw Gemini data and metadata
+      rawFields: documentData.rawFields,
+      metadata: documentData.metadata,
       createdAt: now,
       updatedAt: now,
       userId,

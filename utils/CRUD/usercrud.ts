@@ -1,4 +1,4 @@
-import { COLLECTIONS, NoSQLDB, RelationshipHelpers, User } from "../localdb";
+import { COLLECTIONS, NoSQLDB, Receipt, RelationshipHelpers, User } from "../localdb";
 
 // Create a new user
 export async function createUser(userData: {
@@ -104,6 +104,21 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     return users.length > 0 ? users[0] : null;
   } catch (error) {
     console.error("Error getting user by email:", error);
+    throw error;
+  }
+}
+
+// Get all receipts for a specific user
+export async function getUserReceipts(userId: string): Promise<Receipt[]> {
+  try {
+    console.log('📊 USER DEBUG - Getting receipts for user:', userId);
+    const userWithRelations = await RelationshipHelpers.getUserWithRelations(userId);
+    const receipts = userWithRelations?.receipts || [];
+    console.log('📊 USER DEBUG - Found receipts count:', receipts.length);
+    console.log('📊 USER DEBUG - Receipt IDs:', receipts.map(r => r._id));
+    return receipts;
+  } catch (error) {
+    console.error("Error getting user receipts:", error);
     throw error;
   }
 }

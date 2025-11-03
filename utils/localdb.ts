@@ -57,6 +57,7 @@ export interface Receipt {
   tax?: number;
   subtotal?: number;
   date: Date;
+  paymentMethod?: string; // Payment method from receipt
   
   // Line Items
   items: ReceiptItem[];
@@ -236,41 +237,235 @@ export class NoSQLDB {
 }
 
 // Conversion helper to transform ProcessedReceipt to local Receipt format
-export function convertProcessedReceiptToLocal(processedReceipt: any, imageUrl?: string): Omit<Receipt, "_id" | "createdAt" | "updatedAt"> {
-  return {
-    // Merchant info
-    merchant: processedReceipt.merchant?.name || processedReceipt.merchantInfo?.name || 'Unknown Merchant',
-    merchantPhone: processedReceipt.merchant?.phone_number || processedReceipt.merchantInfo?.phone_number,
-    merchantAddress: typeof processedReceipt.merchant?.address === 'string' 
-      ? processedReceipt.merchant.address 
-      : processedReceipt.merchantInfo?.address,
+// Convert Receipt back to ProcessedReceipt format
+export function convertLocalReceiptToProcessed(receipt: Receipt): any {
+  console.log('🔄 CONVERT BACK DEBUG - Input Receipt:', JSON.stringify(receipt, null, 2));
+  
+  const processedReceipt = {
+    id: receipt._id,
+    originalImageUri: receipt.imageUrl || '',
+    rawText: receipt.ocrText,
     
-    // Transaction totals
-    amount: processedReceipt.totals?.total || 0,
-    tax: processedReceipt.totals?.tax || 0,
-    subtotal: processedReceipt.totals?.subtotal,
+    merchant: {
+      name: receipt.merchant,
+      phone_number: receipt.merchantPhone,
+      address: receipt.merchantAddress,
+      confidence: receipt.confidence || 0.8
+    },
     
-    // Date
-    date: new Date(processedReceipt.transaction?.date || processedReceipt.transactionInfo?.date || new Date()),
+    transaction: {
+      date: receipt.date instanceof Date ? receipt.date.toISOString().split('T')[0] : new Date(receipt.date).toISOString().split('T')[0],
+      confidence: receipt.confidence || 0.8
+    },
     
-    // Line items conversion
-    items: (processedReceipt.items || processedReceipt.lineItems || []).map((item: any) => ({
-      name: item.name || 'Unknown Item',
-      quantity: item.quantity || 1,
-      itemPrice: item.itemprice || item.unitPrice || item.totalPrice || 0,
-      lineTotal: item.linetotal || item.totalPrice || 0,
-      confidence: item.confidence || 0.5,
+    items: receipt.items.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.itemPrice,
+      totalPrice: item.lineTotal,
+      confidence: item.confidence || 0.8,
+      category: item.category,
+      categoryConfidence: item.categoryConfidence
     })),
     
-    // Legacy and metadata
-    category: processedReceipt.overallCategory || undefined,
-    tags: processedReceipt.tags || [],
-    imageUrl: imageUrl || processedReceipt.originalImageUri,
-    ocrText: processedReceipt.rawText || '',
-    currency: processedReceipt.metadata?.currency || 'ZAR',
-    locale: processedReceipt.metadata?.locale || 'en-ZA',
-    confidence: processedReceipt.confidence?.overall || 0.5,
+    totals: {
+      subtotal: receipt.subtotal || (receipt.amount - (receipt.tax || 0)),
+      tax: receipt.tax || 0,
+      total: receipt.amount,
+      confidence: receipt.confidence || 0.8
+    },
+    
+    payment: {
+      method: receipt.paymentMethod || 'other',
+      confidence: 0.5
+    },
+    
+    processingSteps: [{
+      step: 'database_storage',
+      status: 'success',
+      confidence: receipt.confidence || 0.8,
+      processingTime: 0
+    }],
+    
+    confidence: {
+      overall: receipt.confidence || 0.8,
+      textExtraction: 0.8,
+      documentParsing: 0.8,
+      dataQuality: (receipt.confidence || 0.8) > 0.8 ? 'high' : 'medium'
+    },
+    
+    createdAt: receipt.createdAt instanceof Date ? receipt.createdAt.toISOString() : new Date(receipt.createdAt).toISOString(),
+    updatedAt: receipt.updatedAt instanceof Date ? receipt.updatedAt.toISOString() : new Date(receipt.updatedAt).toISOString(),
+    tags: receipt.tags || [],
+    notes: '',
+    
+    // Additional fields for compatibility
+    currency: receipt.currency,
+    locale: receipt.locale,
+    category: receipt.category,
+    overallCategory: receipt.category
   };
+  
+  console.log('✅ CONVERT BACK DEBUG - Output ProcessedReceipt:', JSON.stringify(processedReceipt, null, 2));
+  console.log('💳 PAYMENT DEBUG - Payment method being loaded:', processedReceipt.payment.method);
+  console.log('📅 DATE DEBUG - Date being loaded:', processedReceipt.transaction.date);
+  return processedReceipt;
+}
+
+export function convertProcessedReceiptToLocal(processedReceipt: any, imageUrl?: string): Omit<Receipt, "_id" | "createdAt" | "updatedAt"> {
+  console.log('🔄 CONVERT DEBUG - Input ProcessedReceipt:', JSON.stringify(processedReceipt, null, 2));
+  
+  // Simple date extraction from OCR text or provided date
+  const extractReceiptDate = (): Date => {
+    // First try the provided date fields
+    let dateStr = processedReceipt.transaction?.date || 
+                  processedReceipt.transactionInfo?.date || 
+                  processedReceipt.date;
+    
+    // If no date in fields, try to extract from OCR text
+    if (!dateStr) {
+      const ocrText = processedReceipt.rawText || processedReceipt.ocrText || '';
+      const dateMatch = ocrText.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+      if (dateMatch) {
+        dateStr = dateMatch[1];
+        console.log('📅 Found date in OCR text:', dateStr);
+      }
+    }
+    
+    if (!dateStr) {
+      console.log('📅 No date found, using current date');
+      return new Date();
+    }
+    
+    // Parse YY/MM/DD format (Gemini's consistent format)
+    const yymmddMatch = String(dateStr).match(/(\d{2})\/(\d{1,2})\/(\d{1,2})/);
+    if (yymmddMatch) {
+      const year = parseInt(yymmddMatch[1]) + 2000; // Convert YY to 20YY
+      const month = parseInt(yymmddMatch[2]) - 1; // 0-indexed
+      const day = parseInt(yymmddMatch[3]);
+      const parsed = new Date(year, month, day);
+      console.log('📅 Parsed YY/MM/DD date:', dateStr, '→', parsed.toDateString());
+      return parsed;
+    }
+    
+    // Fallback: Parse YYYY/MM/DD or DD/MM/YYYY format
+    const fullDateMatch = String(dateStr).match(/(\d{1,4})\/(\d{1,2})\/(\d{1,4})/);
+    if (fullDateMatch) {
+      const part1 = parseInt(fullDateMatch[1]);
+      const part2 = parseInt(fullDateMatch[2]);
+      const part3 = parseInt(fullDateMatch[3]);
+      
+      // If first part is 4 digits, it's YYYY/MM/DD
+      if (part1 > 31) {
+        const year = part1;
+        const month = part2 - 1;
+        const day = part3;
+        const parsed = new Date(year, month, day);
+        console.log('📅 Parsed YYYY/MM/DD date:', dateStr, '→', parsed.toDateString());
+        return parsed;
+      }
+      // If third part is 4 digits, it's DD/MM/YYYY
+      else if (part3 > 31) {
+        const day = part1;
+        const month = part2 - 1;
+        const year = part3;
+        const parsed = new Date(year, month, day);
+        console.log('📅 Parsed DD/MM/YYYY date:', dateStr, '→', parsed.toDateString());
+        return parsed;
+      }
+    }
+    
+    console.log('📅 Could not parse date:', dateStr, '- using current date');
+    return new Date();
+  };
+
+  // Extract receipt date using simplified approach
+  const receiptDate = extractReceiptDate();
+  
+  // Handle merchant info more comprehensively
+  const merchantName = processedReceipt.merchant?.name || 
+                      processedReceipt.merchantInfo?.name || 
+                      processedReceipt.merchant || 
+                      'Unknown Merchant';
+  
+  // Handle merchant contact info
+  const merchantPhone = processedReceipt.merchant?.phone_number || 
+                       processedReceipt.merchant?.phone || 
+                       processedReceipt.merchantInfo?.phone_number ||
+                       processedReceipt.merchantInfo?.phone;
+  
+  const merchantAddress = processedReceipt.merchant?.address || 
+                         processedReceipt.merchantInfo?.address;
+  
+  // Handle amounts more carefully
+  const totalAmount = processedReceipt.totals?.total || 
+                     processedReceipt.total || 
+                     processedReceipt.amount || 
+                     0;
+  
+  const taxAmount = processedReceipt.totals?.tax || 
+                   processedReceipt.tax || 
+                   0;
+  
+  const subtotalAmount = processedReceipt.totals?.subtotal || 
+                        processedReceipt.subtotal || 
+                        (totalAmount - taxAmount);
+  
+  // Handle items conversion with better mapping
+  const items = (processedReceipt.items || processedReceipt.lineItems || []).map((item: any) => {
+    const itemName = item.name || item.description || 'Unknown Item';
+    const quantity = item.quantity || 1;
+    const unitPrice = item.unitPrice || item.itemprice || item.itemPrice || 0;
+    const lineTotal = item.totalPrice || item.linetotal || item.lineTotal || (unitPrice * quantity);
+    
+    return {
+      name: itemName,
+      quantity: quantity,
+      itemPrice: unitPrice,
+      lineTotal: lineTotal,
+      confidence: item.confidence || 0.8,
+      category: item.category,
+      categoryConfidence: item.categoryConfidence
+    };
+  });
+  
+  const convertedReceipt = {
+    // Merchant info
+    merchant: merchantName,
+    merchantPhone: merchantPhone,
+    merchantAddress: typeof merchantAddress === 'string' ? merchantAddress : 
+                    (merchantAddress ? JSON.stringify(merchantAddress) : undefined),
+    
+    // Transaction totals
+    amount: totalAmount,
+    tax: taxAmount,
+    subtotal: subtotalAmount,
+    
+    // Date
+    date: receiptDate,
+    paymentMethod: processedReceipt.payment?.method || processedReceipt.paymentInfo?.method || processedReceipt.paymentMethod,
+    
+    // Line items
+    items: items,
+    
+    // Category and tags
+    category: processedReceipt.overallCategory || processedReceipt.category,
+    tags: processedReceipt.tags || [],
+    
+    // Media and processing
+    imageUrl: imageUrl || processedReceipt.originalImageUri || processedReceipt.imageUrl,
+    ocrText: processedReceipt.rawText || processedReceipt.ocrText || '',
+    
+    // Metadata
+    currency: processedReceipt.currency || processedReceipt.metadata?.currency || 'ZAR',
+    locale: processedReceipt.locale || processedReceipt.metadata?.locale || 'en-ZA',
+    confidence: processedReceipt.confidence?.overall || processedReceipt.confidence || 0.8,
+  };
+  
+  console.log('✅ CONVERT DEBUG - Output Receipt:', JSON.stringify(convertedReceipt, null, 2));
+  console.log('💳 PAYMENT DEBUG - Payment method being saved:', convertedReceipt.paymentMethod);
+  console.log('📅 DATE DEBUG - Final date being saved to database:', receiptDate.toISOString(), '(', receiptDate.toLocaleDateString(), ')');
+  return convertedReceipt;
 }
 
 // Helper functions for relationships (NoSQL style)
@@ -356,18 +551,27 @@ export class RelationshipHelpers {
     userId: string,
     receipt: Omit<Receipt, "_id" | "createdAt" | "updatedAt">
   ): Promise<Receipt | null> {
+    console.log('💾 SAVE DEBUG - Input receipt to save:', JSON.stringify(receipt, null, 2));
+    
     const newReceipt = await NoSQLDB.addDocument<Receipt>(
       COLLECTIONS.RECEIPTS,
       receipt
     );
+    
+    console.log('💾 SAVE DEBUG - Saved receipt with ID:', newReceipt._id);
+    console.log('💾 SAVE DEBUG - Saved receipt data:', JSON.stringify(newReceipt, null, 2));
 
     const user = await NoSQLDB.getDocumentById<User>(COLLECTIONS.USERS, userId);
-    if (!user) return null;
+    if (!user) {
+      console.error('💾 SAVE DEBUG - User not found:', userId);
+      return null;
+    }
 
     await NoSQLDB.updateDocument<User>(COLLECTIONS.USERS, userId, {
       receiptIds: [...user.receiptIds, newReceipt._id],
     });
 
+    console.log('💾 SAVE DEBUG - Updated user receiptIds:', [...user.receiptIds, newReceipt._id]);
     return newReceipt;
   }
 
@@ -379,5 +583,39 @@ export class RelationshipHelpers {
   ): Promise<Receipt | null> {
     const localReceipt = convertProcessedReceiptToLocal(processedReceipt, imageUrl);
     return this.addReceiptToUser(userId, localReceipt);
+  }
+
+  // Delete receipt from user and database
+  static async deleteReceiptFromUser(
+    userId: string,
+    receiptId: string
+  ): Promise<boolean> {
+    try {
+      console.log('🗑️ DELETE DEBUG - Deleting receipt:', receiptId, 'from user:', userId);
+      
+      // First, remove receipt from user's receiptIds array
+      const user = await NoSQLDB.getDocumentById<User>(COLLECTIONS.USERS, userId);
+      if (!user) {
+        console.error('🗑️ DELETE DEBUG - User not found:', userId);
+        return false;
+      }
+
+      // Remove receipt ID from user's array
+      const updatedReceiptIds = user.receiptIds.filter(id => id !== receiptId);
+      await NoSQLDB.updateDocument<User>(COLLECTIONS.USERS, userId, {
+        receiptIds: updatedReceiptIds,
+      });
+
+      console.log('🗑️ DELETE DEBUG - Updated user receiptIds:', updatedReceiptIds);
+
+      // Then delete the receipt from the receipts collection
+      const deleted = await NoSQLDB.deleteDocument(COLLECTIONS.RECEIPTS, receiptId);
+      
+      console.log('🗑️ DELETE DEBUG - Receipt deleted from database:', deleted);
+      return deleted;
+    } catch (error) {
+      console.error('🗑️ DELETE DEBUG - Error deleting receipt:', error);
+      return false;
+    }
   }
 }

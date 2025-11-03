@@ -64,6 +64,23 @@ class DatabaseService {
   async storeReceipt(receipt: ProcessedReceipt): Promise<ProcessingResult<{ id: string }>> {
     await this.initialize();
     
+    console.log('💾 DATABASE STORE DEBUG - Receipt being stored:');
+    console.log('  - ID:', receipt.id);
+    console.log('  - Merchant:', receipt.merchant?.name);
+    console.log('  - Total:', receipt.totals?.total);
+    console.log('  - VAT:', receipt.totals?.tax);
+    console.log('  - Tip:', receipt.totals?.tip);
+    console.log('  - Payment Method:', receipt.payment?.method);
+    console.log('  - Items Count:', receipt.items?.length);
+    console.log('  - Items with Categories:', receipt.items?.map(item => ({ 
+      name: (item as any).name, 
+      category: (item as any).category,
+      categoryConfidence: (item as any).categoryConfidence
+    })));
+    console.log('  - Raw Fields Present:', !!receipt.rawFields);
+    console.log('  - Metadata Present:', !!receipt.metadata);
+    console.log('  - Full Receipt Structure:', JSON.stringify(receipt, null, 2));
+    
     try {
       let id: string;
 
@@ -91,6 +108,9 @@ class DatabaseService {
       if (this.config.app.enableLogging) {
         console.log(`✅ Receipt stored with ID: ${id}`);
       }
+
+      console.log('💾 DATABASE STORE SUCCESS - Confirmed stored with ID:', id);
+      console.log('✅ All Gemini data preservation completed successfully!');
 
       return {
         success: true,

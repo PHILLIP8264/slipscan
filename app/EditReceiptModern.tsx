@@ -3,24 +3,26 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import databaseService from "../services/DatabaseService";
 import receiptProcessingService from "../services/ReceiptProcessingService";
 import { ProcessedReceipt } from "../types/receipt";
 import { initializeBudgetCategories, listCategories } from "../utils/CRUD/categorycrud";
-import { Category } from "../utils/localdb";
+import { getReceiptById } from "../utils/CRUD/receiptcrud";
+import { createUser, getUserByEmail } from "../utils/CRUD/usercrud";
+import { Category, RelationshipHelpers, convertLocalReceiptToProcessed } from "../utils/localdb";
+import { useAuth } from "./contexts/AuthContext";
 
 interface ProcessingState {
   stage: 'extracting' | 'parsing' | 'categorizing' | 'storing' | 'complete' | 'error';
@@ -31,6 +33,7 @@ interface ProcessingState {
 export default function EditReceipt() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { authState } = useAuth();
 
   // Core state
   const [processedReceipt, setProcessedReceipt] = useState<ProcessedReceipt | null>(null);
@@ -46,7 +49,9 @@ export default function EditReceipt() {
   const [editableData, setEditableData] = useState<Partial<ProcessedReceipt>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showImagePreview, setShowImagePreview] = useState(false);
+  const [isExistingReceipt, setIsExistingReceipt] = useState(false);
 
   // Category state
   const [categories, setCategories] = useState<Category[]>([]);
@@ -93,6 +98,35 @@ export default function EditReceipt() {
 
   const initializeReceipt = async () => {
     try {
+      // Check if we have a receipt ID to load an existing receipt
+      if (params.id) {
+        console.log('Loading existing receipt with ID:', params.id);
+        const existingReceipt = await getReceiptById(params.id as string);
+        
+        if (existingReceipt) {
+          console.log('🔍 LOAD DEBUG - Raw receipt from database:', JSON.stringify(existingReceipt, null, 2));
+          
+          // Convert Receipt to ProcessedReceipt format using helper function
+          const processedReceiptData = convertLocalReceiptToProcessed(existingReceipt);
+          
+          console.log('🔄 LOAD DEBUG - Converted ProcessedReceipt:', JSON.stringify(processedReceiptData, null, 2));
+          
+          setProcessedReceipt(processedReceiptData);
+          setEditableData(processedReceiptData);
+          setOriginalImageUri(existingReceipt.imageUrl || '');
+          setIsExistingReceipt(true); // Mark as existing receipt
+          setIsProcessing(false);
+          setProcessingState({
+            stage: 'complete',
+            message: 'Receipt loaded successfully!',
+            progress: 1.0
+          });
+          return;
+        } else {
+          throw new Error('Receipt not found');
+        }
+      }
+
       // Check if we have pre-processed data
       if (params.receiptData) {
         let decoded: string;
@@ -199,21 +233,80 @@ export default function EditReceipt() {
     }
   };
 
+  /**
+   * Deep merge utility function to properly combine objects without losing data
+   */
+  const deepMerge = (target: any, source: any): any => {
+    if (!source || typeof source !== 'object') return target;
+    if (!target || typeof target !== 'object') return source;
+    
+    const result = { ...target };
+    
+    for (const key in source) {
+      if (source[key] !== undefined && source[key] !== null) {
+        if (typeof source[key] === 'object' && !Array.isArray(source[key])) {
+          result[key] = deepMerge(target[key] || {}, source[key]);
+        } else {
+          result[key] = source[key];
+        }
+      }
+    }
+    
+    return result;
+  };
+
   const handleSaveReceipt = async () => {
     if (!editableData) return;
 
     try {
       setIsSaving(true);
       
-      // Create final receipt with edits
-      const finalReceipt: ProcessedReceipt = {
-        ...processedReceipt!,
+      console.log('📦 SAVE DEBUG - Original processedReceipt:', JSON.stringify(processedReceipt, null, 2));
+      console.log('✏️ SAVE DEBUG - Editable data:', JSON.stringify(editableData, null, 2));
+      
+      // Create final receipt with proper deep merging to preserve all data
+      const finalReceipt: ProcessedReceipt = deepMerge(processedReceipt!, {
         ...editableData,
         updatedAt: new Date().toISOString(),
-      };
+      });
 
-      // Save to database
-      await databaseService.storeReceipt(finalReceipt);
+      console.log('💾 SAVE DEBUG - Final receipt to be saved:', JSON.stringify(finalReceipt, null, 2));
+      console.log('🔍 SAVE DEBUG - Key fields check:');
+      console.log('  - VAT/Tax:', finalReceipt.totals?.tax);
+      console.log('  - Tip:', finalReceipt.totals?.tip);
+      console.log('  - Payment Method:', finalReceipt.payment?.method);
+      console.log('  - Items with categories:', finalReceipt.items?.map(item => ({ name: (item as any).name, category: (item as any).category })));
+
+      // Get or create user for local database
+      const userEmail = authState.lastUserEmail;
+      if (!userEmail) {
+        throw new Error('No authenticated user found');
+      }
+
+      let user = await getUserByEmail(userEmail);
+      if (!user) {
+        // Create user if doesn't exist
+        user = await createUser({
+          name: authState.lastUserName || 'User',
+          email: userEmail,
+        });
+        console.log('✅ Created new user for email:', userEmail);
+      }
+
+      console.log('💾 Saving to local database for user:', user._id);
+
+      // Save to local database using RelationshipHelpers
+      const savedReceipt = await RelationshipHelpers.addProcessedReceiptToUser(
+        user._id,
+        finalReceipt,
+        finalReceipt.originalImageUri
+      );
+
+      if (!savedReceipt) {
+        throw new Error('Failed to save receipt to local database');
+      }
+
+      console.log('✅ Receipt saved to local database with ID:', savedReceipt._id);
 
       Alert.alert(
         "✅ Receipt Saved!",
@@ -237,8 +330,72 @@ export default function EditReceipt() {
     }
   };
 
+  const handleDeleteReceipt = async () => {
+    if (!processedReceipt?.id || !isExistingReceipt) return;
+
+    Alert.alert(
+      "🗑️ Delete Receipt",
+      "Are you sure you want to delete this receipt? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              
+              console.log('🗑️ DELETE RECEIPT - Starting deletion for receipt ID:', processedReceipt.id);
+              
+              // Get current user
+              const userEmail = authState.lastUserEmail;
+              if (!userEmail) {
+                throw new Error('No authenticated user found');
+              }
+
+              const user = await getUserByEmail(userEmail);
+              if (!user) {
+                throw new Error('User not found in database');
+              }
+              
+              // Delete from database and user relationship
+              const deleted = await RelationshipHelpers.deleteReceiptFromUser(user._id, processedReceipt.id);
+              
+              if (deleted) {
+                console.log('✅ Receipt deleted successfully');
+                
+                Alert.alert(
+                  "✅ Receipt Deleted",
+                  "The receipt has been successfully deleted from your collection.",
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => router.push('/tabs/search') // Go back to search page
+                    }
+                  ]
+                );
+              } else {
+                throw new Error('Failed to delete receipt');
+              }
+            } catch (error) {
+              console.error('Delete error:', error);
+              Alert.alert("❌ Delete Failed", "Failed to delete receipt. Please try again.");
+            } finally {
+              setIsDeleting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const updateItem = (itemIndex: number, field: string, value: any) => {
     if (!editableData.items) return;
+    
+    console.log(`🏷️ CATEGORY UPDATE - Item ${itemIndex}, Field: ${field}, Value:`, value);
     
     const updatedItems = [...editableData.items];
     updatedItems[itemIndex] = { ...updatedItems[itemIndex], [field]: value };
@@ -247,6 +404,12 @@ export default function EditReceipt() {
       ...editableData,
       items: updatedItems
     });
+
+    console.log('📝 Updated editableData.items:', updatedItems.map(item => ({ 
+      name: (item as any).name, 
+      category: (item as any).category,
+      categoryConfidence: (item as any).categoryConfidence 
+    })));
   };
 
   const openCategoryPicker = (itemIndex: number) => {
@@ -513,7 +676,13 @@ export default function EditReceipt() {
                       const amount = parseFloat(text.replace('R', '')) || 0;
                       setEditableData({
                         ...editableData,
-                        totals: { ...editableData.totals!, total: amount }
+                        totals: { 
+                          tax: 0, 
+                          tip: 0, 
+                          confidence: 0.5,
+                          ...editableData.totals, 
+                          total: amount 
+                        }
                       });
                     }}
                     placeholder="R0.00"
@@ -522,6 +691,91 @@ export default function EditReceipt() {
                     placeholderTextColor="#999"
                   />
                 </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Payment Summary Card */}
+          <View style={styles.modernCard}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIconContainer}>
+                <Ionicons name="card-outline" size={20} color="#667eea" />
+              </View>
+              <Text style={styles.cardTitle}>Payment Summary</Text>
+            </View>
+
+            <View style={styles.cardContent}>
+              <View style={styles.transactionRow}>
+                <View style={styles.modernInputGroup}>
+                  <Text style={styles.modernLabel}>VAT/Tax</Text>
+                  <TextInput
+                    style={[styles.modernInput, !isEditing && styles.modernInputDisabled]}
+                    value={`R${editableData.totals?.tax?.toFixed(2) || '0.00'}`}
+                    onChangeText={(text) => {
+                      const amount = parseFloat(text.replace('R', '')) || 0;
+                      setEditableData({
+                        ...editableData,
+                        totals: { 
+                          total: 0, 
+                          tip: 0, 
+                          confidence: 0.5,
+                          ...editableData.totals, 
+                          tax: amount 
+                        }
+                      });
+                    }}
+                    placeholder="R0.00"
+                    editable={isEditing}
+                    keyboardType="numeric"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+
+                <View style={styles.modernInputGroup}>
+                  <Text style={styles.modernLabel}>Tip</Text>
+                  <TextInput
+                    style={[styles.modernInput, !isEditing && styles.modernInputDisabled]}
+                    value={`R${editableData.totals?.tip?.toFixed(2) || '0.00'}`}
+                    onChangeText={(text) => {
+                      const amount = parseFloat(text.replace('R', '')) || 0;
+                      setEditableData({
+                        ...editableData,
+                        totals: { 
+                          total: 0, 
+                          tax: 0, 
+                          confidence: 0.5,
+                          ...editableData.totals, 
+                          tip: amount 
+                        }
+                      });
+                    }}
+                    placeholder="R0.00"
+                    editable={isEditing}
+                    keyboardType="numeric"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modernInputGroup}>
+                <Text style={styles.modernLabel}>Payment Method</Text>
+                <TextInput
+                  style={[styles.modernInput, !isEditing && styles.modernInputDisabled]}
+                  value={editableData.payment?.method || 'Unknown'}
+                  onChangeText={(text) => {
+                    setEditableData({
+                      ...editableData,
+                      payment: { 
+                        confidence: 0.5,
+                        ...editableData.payment, 
+                        method: text as any 
+                      }
+                    });
+                  }}
+                  placeholder="Payment method"
+                  editable={isEditing}
+                  placeholderTextColor="#999"
+                />
               </View>
             </View>
           </View>
@@ -649,12 +903,13 @@ export default function EditReceipt() {
             </View>
           </View>
 
-          {/* Save Button */}
+          {/* Action Buttons */}
           <View style={styles.modernActionsContainer}>
+            {/* Save Button */}
             <TouchableOpacity 
               style={[styles.modernSaveButton, isSaving && styles.modernSaveButtonDisabled]}
               onPress={handleSaveReceipt}
-              disabled={isSaving}
+              disabled={isSaving || isDeleting}
             >
               <LinearGradient
                 colors={isSaving ? ['#ccc', '#999'] : ['#667eea', '#764ba2']}
@@ -670,6 +925,29 @@ export default function EditReceipt() {
                 )}
               </LinearGradient>
             </TouchableOpacity>
+
+            {/* Delete Button - Only show for existing receipts */}
+            {isExistingReceipt && (
+              <TouchableOpacity 
+                style={[styles.modernDeleteButton, isDeleting && styles.modernDeleteButtonDisabled]}
+                onPress={handleDeleteReceipt}
+                disabled={isDeleting || isSaving}
+              >
+                <LinearGradient
+                  colors={isDeleting ? ['#ccc', '#999'] : ['#ff6b6b', '#ee5a52']}
+                  style={styles.deleteButtonGradient}
+                >
+                  {isDeleting ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="trash-outline" size={24} color="white" />
+                      <Text style={styles.modernDeleteButtonText}>Delete</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.modernBottomSpacing} />
@@ -1350,8 +1628,11 @@ const styles = StyleSheet.create({
   },
   modernActionsContainer: {
     padding: 20,
+    flexDirection: 'row',
+    gap: 12,
   },
   modernSaveButton: {
+    flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -1369,6 +1650,27 @@ const styles = StyleSheet.create({
   modernSaveButtonText: {
     color: 'white',
     fontSize: 18,
+    fontWeight: '600',
+  },
+  modernDeleteButton: {
+    flex: 0.6, // Make delete button smaller than save
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modernDeleteButtonDisabled: {
+    opacity: 0.6,
+  },
+  deleteButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  modernDeleteButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: '600',
   },
   modernBottomSpacing: {

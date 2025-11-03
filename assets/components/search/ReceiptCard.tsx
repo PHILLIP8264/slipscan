@@ -29,9 +29,20 @@ export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, onPress }) =>
       </View>
       
       <View style={styles.receiptDetails}>
-        <Text style={styles.category}>{receipt.category}</Text>
+        <Text style={styles.category}>{receipt.category || 'Uncategorized'}</Text>
         <Text style={styles.date}>{formatDate(receipt.date)}</Text>
       </View>
+      
+      {(receipt.tax || receipt.items.length > 0) && (
+        <View style={styles.additionalInfo}>
+          {receipt.tax && receipt.tax > 0 && (
+            <Text style={styles.taxInfo}>Tax: R{receipt.tax.toFixed(2)}</Text>
+          )}
+          {receipt.items.length > 0 && (
+            <Text style={styles.itemCount}>{receipt.items.length} item{receipt.items.length > 1 ? 's' : ''}</Text>
+          )}
+        </View>
+      )}
       
       {receipt.tags.length > 0 && (
         <View style={styles.tagsContainer}>
@@ -126,5 +137,24 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  additionalInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  taxInfo: {
+    fontSize: 12,
+    color: '#28a745',
+    fontWeight: '600',
+  },
+  itemCount: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
   },
 });

@@ -150,6 +150,10 @@ export interface ProcessedReceipt {
   processingSteps: ProcessingStep[];
   confidence: ProcessingConfidence;
   
+  // Raw processing data preservation
+  rawFields?: Record<string, any>;
+  metadata?: ReceiptMetadata;
+  
   // Database fields
   createdAt: string;
   updatedAt: string;

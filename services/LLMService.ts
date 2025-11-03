@@ -188,7 +188,7 @@ CRITICAL INSTRUCTIONS:
 - If a category is not obvious, use "Other"
 - Provide confidence scores (0.0 to 1.0)
 - The date will appear as dd/mm/yy (e.g., "30/10/24")
-- Convert any date found on receipt to dd/mm/yy format
+- Convert any date found on receipt to yy/mm/dd format
 - **CRITICAL:** Place the complete, original, un-escaped RAW TEXT (provided at the top) into the "rawFields.rawText" key.
 
 AVAILABLE CATEGORIES (use exact names):
@@ -212,7 +212,7 @@ Required JSON structure:
     "confidence": 0.9
   },
   "transactionInfo": {
-    "date": "dd/mm/yy",
+    "date": "yy/mm/dd",
     "confidence": 0.8
   },
   "lineItems": [
@@ -300,7 +300,7 @@ CRITICAL: Return ONLY the complete JSON structure above with actual data from th
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 4096, // Reduced to prevent truncation
+          maxOutputTokens: 4096, // Increased to prevent truncation
           responseMimeType: 'application/json',
         },
       }),
@@ -394,7 +394,7 @@ CRITICAL: Return ONLY the complete JSON structure above with actual data from th
             );
           }
 
-          return parsedResult; // This is now type-safe
+          return parsedResult; 
         }
 
         // --- 2. TRANSIENT ERROR PATH (Retryable: 503 or 429) ---

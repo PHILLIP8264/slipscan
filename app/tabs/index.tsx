@@ -25,6 +25,7 @@ export default function Index() {
   const [budgetData, setBudgetData] = useState<Budget | null>(null);
   const [loadingBudget, setLoadingBudget] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMockData, setLoadingMockData] = useState(false);
 
   useEffect(() => {
     loadBudgetData();
@@ -147,6 +148,8 @@ export default function Index() {
     }
   };
 
+
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#4285F4" />
@@ -251,6 +254,8 @@ export default function Index() {
               }
             </Text>
           </TouchableOpacity>
+
+          
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -400,6 +405,25 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Mock Data Button Styles
+  mockDataButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  mockDataButtonText: {
+    color: '#666',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 6,
   },
 
 });

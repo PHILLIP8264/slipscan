@@ -16,19 +16,13 @@ import {
   SearchBar,
   type SearchFilter,
 } from '../../assets/components/search';
-import {
-  getReceiptsByCategory,
-  getReceiptsByMerchant,
-  getReceiptsByTag,
-  getReceiptsInAmountRange,
-  getReceiptsInDateRange,
-  listReceipts,
-  searchReceiptsByOCR
-} from '../../utils/CRUD/receiptcrud';
+import { getUserByEmail, getUserReceipts } from '../../utils/CRUD/usercrud';
 import { Receipt } from '../../utils/localdb';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SearchPage() {
   const router = useRouter();
+  const { authState } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [filteredReceipts, setFilteredReceipts] = useState<Receipt[]>([]);
@@ -45,6 +39,13 @@ export default function SearchPage() {
     loadAllReceipts();
   }, []);
 
+  // Reload receipts when user changes
+  useEffect(() => {
+    if (authState.lastUserEmail) {
+      loadAllReceipts();
+    }
+  }, [authState.lastUserEmail]);
+
   useEffect(() => {
     handleSearch();
   }, [searchQuery, selectedFilter, receipts, minAmount, maxAmount, startDate, endDate]);
@@ -52,9 +53,29 @@ export default function SearchPage() {
   const loadAllReceipts = async () => {
     try {
       setLoading(true);
-      const allReceipts = await listReceipts();
-      setReceipts(allReceipts);
-      setFilteredReceipts(allReceipts);
+      
+      // Get current user's receipts only
+      const userEmail = authState.lastUserEmail;
+      if (!userEmail) {
+        console.log('No authenticated user, showing empty receipts list');
+        setReceipts([]);
+        setFilteredReceipts([]);
+        return;
+      }
+
+      const user = await getUserByEmail(userEmail);
+      if (!user) {
+        console.log('User not found in database, showing empty receipts list');
+        setReceipts([]);
+        setFilteredReceipts([]);
+        return;
+      }
+
+      const userReceipts = await getUserReceipts(user._id);
+      setReceipts(userReceipts);
+      setFilteredReceipts(userReceipts);
+      
+      console.log(`✅ Loaded ${userReceipts.length} receipts for user: ${userEmail}`);
     } catch (error) {
       console.error('Error loading receipts:', error);
       Alert.alert('Error', 'Failed to load receipts');
@@ -108,36 +129,47 @@ export default function SearchPage() {
           );
           break;
         case 'merchant':
-          searchResults = await getReceiptsByMerchant(searchQuery);
+          // Filter within user's receipts instead of querying all
+          searchResults = receipts.filter(receipt =>
+            receipt.merchant.toLowerCase().includes(searchQuery.toLowerCase())
+          );
           break;
         case 'category':
-          searchResults = await getReceiptsByCategory(searchQuery);
+          searchResults = receipts.filter(receipt =>
+            receipt.category?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
+          );
           break;
         case 'tag':
-          searchResults = await getReceiptsByTag(searchQuery);
+          searchResults = receipts.filter(receipt =>
+            receipt.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+          );
           break;
         case 'content':
-          searchResults = await searchReceiptsByOCR(searchQuery);
+          searchResults = receipts.filter(receipt =>
+            receipt.ocrText.toLowerCase().includes(searchQuery.toLowerCase())
+          );
           break;
         case 'amount':
           const min = validateAmountInput(minAmount) ?? 0;
           const max = validateAmountInput(maxAmount) ?? Number.MAX_VALUE;
-          searchResults = await getReceiptsInAmountRange(min, max);
+          searchResults = receipts.filter(receipt =>
+            receipt.amount >= min && receipt.amount <= max
+          );
           break;
         case 'date':
           const start = parseDate(startDate);
           const end = parseDate(endDate);
-          if (start && end) {
-            searchResults = await getReceiptsInDateRange(start, end);
-          } else if (start) {
-            // If only start date provided, search from start date to now
-            searchResults = await getReceiptsInDateRange(start, new Date());
-          } else if (end) {
-            // If only end date provided, search from beginning of time to end date
-            searchResults = await getReceiptsInDateRange(new Date(0), end);
-          } else {
-            searchResults = receipts;
-          }
+          searchResults = receipts.filter(receipt => {
+            const receiptDate = new Date(receipt.date);
+            if (start && end) {
+              return receiptDate >= start && receiptDate <= end;
+            } else if (start) {
+              return receiptDate >= start;
+            } else if (end) {
+              return receiptDate <= end;
+            }
+            return true;
+          });
           break;
         default:
           searchResults = receipts;
