@@ -7,7 +7,11 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Linking,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface EmailVerificationPageProps {
@@ -23,6 +27,7 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
   const [isResending, setIsResending] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -44,11 +49,12 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
         try {
           const isVerified = await checkEmailVerificationStatus();
           if (isVerified) {
-            Alert.alert(
-              'Email Verified!',
-              'Your email has been successfully verified. Welcome to SlipScan!',
-              [{ text: 'Continue', onPress: () => {/* Navigation will happen automatically */} }]
-            );
+            console.log('✅ Email verified! Redirecting to main app...');
+            // Clear the interval to stop checking
+            clearInterval(checkInterval);
+            // Navigate directly to main app (skip biometrics setup)
+            router.replace('/tabs');
+            return; // Exit the interval
           }
         } catch (error) {
           console.log('Error checking verification status:', error);
@@ -85,12 +91,87 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
     }
   };
 
-  const handleOpenEmailApp = () => {
-    Alert.alert(
-      'Open Email App',
-      'This would open your default email application. For now, please manually check your email.',
-      [{ text: 'OK' }]
-    );
+  const handleOpenEmailApp = async () => {
+    try {
+      let emailUrl = '';
+      
+      if (Platform.OS === 'ios') {
+        // iOS - Open email apps to inbox/main view (not compose)
+        const mailSchemes = [
+          'message://', // iOS Mail app
+          'googlegmail://co', // Gmail app inbox
+          'ms-outlook://emails', // Outlook app
+        ];
+        
+        for (const scheme of mailSchemes) {
+          try {
+            const supported = await Linking.canOpenURL(scheme);
+            if (supported) {
+              emailUrl = scheme;
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        // iOS fallback - open Settings to Mail
+        if (!emailUrl) {
+          emailUrl = 'App-Prefs:MAIL';
+        }
+      } else {
+        // Android - Open email apps to main view (not compose)
+        const emailApps = [
+          'com.google.android.gm', // Gmail
+          'com.microsoft.office.outlook', // Outlook
+          'com.samsung.android.email.provider', // Samsung Email
+          'com.android.email' // Default Android Email
+        ];
+        
+        // Try to open Gmail first
+        try {
+          const gmailIntent = 'intent://gmail/#Intent;scheme=googlegmail;package=com.google.android.gm;end';
+          const canOpenGmail = await Linking.canOpenURL(gmailIntent);
+          if (canOpenGmail) {
+            emailUrl = gmailIntent;
+          }
+        } catch (e) {
+          console.log('Gmail not available');
+        }
+        
+        // Fallback for Android - open email chooser
+        if (!emailUrl) {
+          emailUrl = 'intent://send#Intent;action=android.intent.action.MAIN;category=android.intent.category.APP_EMAIL;end';
+        }
+      }
+      
+      if (emailUrl) {
+        await Linking.openURL(emailUrl);
+      } else {
+        // If no email app is found, show helpful message
+        Alert.alert(
+          'No Email App Found',
+          'Please open your email app manually to check for the verification email.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error opening email app:', error);
+      // Fallback - try to open device settings
+      try {
+        if (Platform.OS === 'ios') {
+          await Linking.openURL('App-Prefs:');
+        } else {
+          await Linking.openURL('package:com.google.android.gm');
+        }
+      } catch (settingsError) {
+        Alert.alert(
+          'Cannot Open Email App',
+          'Please open your email app manually to check for the verification email.',
+          [{ text: 'OK' }]
+        );
+      }
+    }
   };
 
   const handleBack = () => {
@@ -161,7 +242,8 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
             onPress={handleOpenEmailApp}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryButtonText}>Open Email App</Text>
+            <Ionicons name="mail-open" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+            <Text style={styles.primaryButtonText}>Check Email</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -300,7 +382,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#2b6ef6',
     paddingVertical: 16,
     borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
     shadowColor: '#2b6ef6',
     shadowOffset: {
@@ -310,6 +394,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   primaryButtonText: {
     color: '#fff',

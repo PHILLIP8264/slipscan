@@ -168,6 +168,66 @@ export const authenticateWithBiometrics = async (
 };
 
 /**
+ * Enable biometrics for the user (setup flow)
+ */
+export const enableBiometrics = async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // Check if biometrics hardware is available
+    const biometricsInfo = await isBiometricsAvailable();
+    
+    if (!biometricsInfo.available) {
+      return {
+        success: false,
+        error: "This device doesn't support biometric authentication"
+      };
+    }
+
+    if (!biometricsInfo.isEnrolled) {
+      return {
+        success: false,
+        error: "No biometric credentials are enrolled. Please set up biometric authentication in your device settings first."
+      };
+    }
+
+    // Test biometric authentication
+    const authResult = await LocalAuthentication.authenticateAsync({
+      promptMessage: `Set up ${biometricsInfo.type} for SlipScan`,
+      fallbackLabel: "Use passcode",
+      cancelLabel: "Cancel",
+      disableDeviceFallback: false,
+    });
+
+    if (authResult.success) {
+      // Save preference that biometrics is enabled
+      await setBiometricsEnabled(true);
+      return { success: true };
+    } else {
+      let errorMessage = "Biometric setup was cancelled";
+      
+      const errorString = authResult.error;
+      if (errorString && typeof errorString === 'string') {
+        if (errorString.includes('UserCancel') || errorString.includes('cancelled')) {
+          errorMessage = "Setup was cancelled";
+        } else {
+          errorMessage = "Biometric authentication failed";
+        }
+      }
+      
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  } catch (error) {
+    console.error("Enable biometrics error:", error);
+    return {
+      success: false,
+      error: "Failed to enable biometrics"
+    };
+  }
+};
+
+/**
  * Check if user should be prompted for biometric authentication
  * (both available and enabled)
  */

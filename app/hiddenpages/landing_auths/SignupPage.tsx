@@ -4,6 +4,7 @@ import {
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     SafeAreaView,
     ScrollView,
@@ -31,10 +32,13 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
     displayName: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [errors, setErrors] = useState({
     email: '',
     password: '',
     confirmPassword: '',
+    terms: '',
   });
 
   const updateFormData = (field: keyof typeof formData, value: string) => {
@@ -47,7 +51,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
   };
 
   const validateForm = (): boolean => {
-    const newErrors = { email: '', password: '', confirmPassword: '' };
+    const newErrors = { email: '', password: '', confirmPassword: '', terms: '' };
     let isValid = true;
 
     // Validate email
@@ -70,6 +74,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
       isValid = false;
     }
 
+    // Validate terms and conditions
+    if (!agreeToTerms) {
+      newErrors.terms = 'You must agree to the Terms and Conditions';
+      isValid = false;
+    }
+
     setErrors(newErrors);
     return isValid;
   };
@@ -89,11 +99,11 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
         Alert.alert('Signup Failed', result.error || 'An error occurred during signup');
       } else {
         Alert.alert(
-          'Signup Successful!',
-          'Your account has been created successfully. You can now use the app.',
+          'Account Created!',
+          'Your account has been created successfully. Please verify your email to continue.',
           [{ 
             text: 'Continue', 
-            onPress: () => router.replace('/tabs')
+            onPress: () => router.replace('/hiddenpages/landing_auths/EmailVerificationPage')
           }]
         );
       }
@@ -259,15 +269,50 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
                 <Text style={styles.requirement}>• One special character (!@#$%^&*)</Text>
               </View>
 
+              {/* Terms and Conditions */}
+              <View style={styles.termsContainer}>
+                <TouchableOpacity
+                  style={styles.checkboxContainer}
+                  onPress={() => {
+                    setAgreeToTerms(!agreeToTerms);
+                    if (errors.terms) {
+                      setErrors(prev => ({ ...prev, terms: '' }));
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]}>
+                    {agreeToTerms && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.termsText}>
+                    I agree to the{' '}
+                    <Text 
+                      style={styles.termsLink}
+                      onPress={() => setShowTermsModal(true)}
+                    >
+                      Terms and Conditions
+                    </Text>
+                    {' '}and{' '}
+                    <Text 
+                      style={styles.termsLink}
+                      onPress={() => setShowTermsModal(true)}
+                    >
+                      Privacy Policy
+                    </Text>
+                  </Text>
+                </TouchableOpacity>
+                {errors.terms ? <Text style={styles.errorText}>{errors.terms}</Text> : null}
+              </View>
+
               {/* Signup Button */}
               <TouchableOpacity
                 style={[
                   styles.signupButton,
-                  (isLoading || !formData.email || !formData.password || !formData.confirmPassword) 
+                  (isLoading || !formData.email || !formData.password || !formData.confirmPassword || !agreeToTerms) 
                     ? styles.buttonDisabled : null,
                 ]}
                 onPress={handleSignup}
-                disabled={isLoading || !formData.email || !formData.password || !formData.confirmPassword}
+                disabled={isLoading || !formData.email || !formData.password || !formData.confirmPassword || !agreeToTerms}
                 activeOpacity={0.8}
               >
                 {isLoading ? (
@@ -288,6 +333,79 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Terms and Conditions Modal */}
+      <Modal
+        visible={showTermsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Terms and Conditions</Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowTermsModal(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalCloseText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
+            <Text style={styles.sectionText}>
+              By downloading, installing, or using the SlipScan mobile application ("App"), you agree to be bound by these Terms and Conditions ("Terms").
+            </Text>
+
+            <Text style={styles.sectionTitle}>2. Description of Service</Text>
+            <Text style={styles.sectionText}>
+              SlipScan is a mobile application that allows users to scan, digitize, and manage receipts for expense tracking and budgeting purposes.
+            </Text>
+
+            <Text style={styles.sectionTitle}>3. User Responsibilities</Text>
+            <Text style={styles.sectionText}>
+              • You are responsible for maintaining the confidentiality of your account information{'\n'}
+              • You agree to provide accurate and complete information{'\n'}
+              • You will not use the App for any unlawful or prohibited activities{'\n'}
+              • You are responsible for all activities under your account
+            </Text>
+
+            <Text style={styles.sectionTitle}>4. Privacy and Data Protection</Text>
+            <Text style={styles.sectionText}>
+              We respect your privacy and handle your personal data in accordance with our Privacy Policy. By using the App, you consent to the collection, use, and storage of your information as described in our Privacy Policy.
+            </Text>
+
+            <Text style={styles.sectionTitle}>5. Receipt Data</Text>
+            <Text style={styles.sectionText}>
+              • Receipt images and extracted data are stored securely{'\n'}
+              • You retain ownership of your receipt data{'\n'}
+              • We may process receipt data to improve our services{'\n'}
+              • You can delete your data at any time through the App settings
+            </Text>
+
+            <Text style={styles.sectionTitle}>6. Limitation of Liability</Text>
+            <Text style={styles.sectionText}>
+              The App is provided "as is" without warranties. We are not liable for any damages arising from the use of the App, including data loss or inaccurate receipt processing.
+            </Text>
+
+            <Text style={styles.sectionTitle}>7. Updates and Changes</Text>
+            <Text style={styles.sectionText}>
+              We may update these Terms at any time. Continued use of the App after changes constitutes acceptance of the updated Terms.
+            </Text>
+
+            <Text style={styles.sectionTitle}>8. Contact Information</Text>
+            <Text style={styles.sectionText}>
+              For questions about these Terms, contact us at: support@slipscan.app
+            </Text>
+
+            <Text style={styles.lastUpdated}>
+              Last updated: November 4, 2025
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -438,6 +556,101 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2b6ef6',
     fontWeight: '600',
+  },
+  termsContainer: {
+    marginBottom: 20,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    marginRight: 12,
+    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#2b6ef6',
+    borderColor: '#2b6ef6',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  termsText: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: '#2b6ef6',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  modalCloseButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#2b6ef6',
+    borderRadius: 8,
+  },
+  modalCloseText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  sectionText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  lastUpdated: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 30,
+    marginBottom: 40,
+    textAlign: 'center',
   },
 });
 
