@@ -12,7 +12,7 @@
 import { ProcessedReceipt } from '../types/receipt';
 import { createBudget, updateBudget } from '../utils/CRUD/budgetcrud';
 import { cleanupDuplicateCategories, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../utils/CRUD/categorycrud';
-import { Budget, CategoryBudget, COLLECTIONS, NoSQLDB, Receipt, ReceiptItem, User } from '../utils/localdb';
+import { Budget, COLLECTIONS, NoSQLDB, Receipt, ReceiptItem, User } from '../utils/localdb';
 
 interface BudgetUpdateResult {
   success: boolean;

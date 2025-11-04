@@ -11,6 +11,7 @@ import budgetUpdateService from '../services/BudgetUpdateService';
 import { ProcessedReceipt } from '../types/receipt';
 import { getReceiptById } from '../utils/CRUD/receiptcrud';
 import { createUser, getUserByEmail } from '../utils/CRUD/usercrud';
+import ImageManager from '../utils/ImageManager';
 import { Receipt, RelationshipHelpers } from '../utils/localdb';
 
 interface SaveReceiptResult {
@@ -108,11 +109,32 @@ class ReceiptBudgetIntegrationImpl implements ReceiptBudgetIntegration {
       const user = userResult.user;
       console.log('💾 Saving to local database for user:', user._id);
 
+      // Save the temporary image to permanent storage
+      let permanentImagePath = finalReceipt.originalImageUri;
+      
+      if (finalReceipt.originalImageUri) {
+        try {
+          console.log('💾 Saving receipt image to permanent storage...');
+          permanentImagePath = await ImageManager.saveReceiptImage(
+            finalReceipt.originalImageUri,
+            undefined, // No receipt ID yet
+            finalReceipt.merchant.name
+          );
+          console.log('✅ Image saved permanently:', permanentImagePath);
+          
+          // Update the receipt with permanent image path
+          finalReceipt.originalImageUri = permanentImagePath;
+        } catch (imageError) {
+          console.error('⚠️ Failed to save image permanently, using original path:', imageError);
+          // Continue with original path - don't fail the entire receipt save
+        }
+      }
+
       // Save receipt to database
       const savedReceipt = await RelationshipHelpers.addProcessedReceiptToUser(
         user._id,
         finalReceipt,
-        finalReceipt.originalImageUri
+        permanentImagePath
       );
 
       if (!savedReceipt) {
@@ -219,6 +241,27 @@ class ReceiptBudgetIntegrationImpl implements ReceiptBudgetIntegration {
       console.log('🔄 Updating existing receipt in database...');
       const { updateFullReceipt } = await import('./CRUD/receiptcrud');
       
+      // Handle image storage for edited receipt
+      let permanentImagePath = finalReceipt.originalImageUri;
+      
+      // If the image URI looks temporary (e.g., from camera), save it permanently
+      if (finalReceipt.originalImageUri && !finalReceipt.originalImageUri.includes('receipts/')) {
+        try {
+          console.log('💾 Saving edited receipt image to permanent storage...');
+          permanentImagePath = await ImageManager.saveReceiptImage(
+            finalReceipt.originalImageUri,
+            originalReceiptId,
+            finalReceipt.merchant.name
+          );
+          console.log('✅ Edited image saved permanently:', permanentImagePath);
+          
+          // Update the receipt with permanent image path
+          finalReceipt.originalImageUri = permanentImagePath;
+        } catch (imageError) {
+          console.error('⚠️ Failed to save edited image permanently, using original path:', imageError);
+        }
+      }
+
       // Convert ProcessedReceipt to Receipt format for update
       const receiptUpdates = {
         merchant: finalReceipt.merchant.name,
@@ -226,7 +269,7 @@ class ReceiptBudgetIntegrationImpl implements ReceiptBudgetIntegration {
         category: finalReceipt.items?.[0]?.category || 'Uncategorized', // Use first item's category
         date: new Date(finalReceipt.transaction.date),
         tags: finalReceipt.tags || [],
-        imageUrl: finalReceipt.originalImageUri,
+        imageUrl: permanentImagePath,
         ocrText: finalReceipt.rawText || '',
         items: finalReceipt.items?.map(item => ({
           name: item.name,
