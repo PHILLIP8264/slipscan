@@ -2,14 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import DocumentScanner from "../utils/DocumentScanner";
 
@@ -27,7 +27,7 @@ export default function ScanReceipt() {
 
       // Use Google Vision for best accuracy, with OCR fallback
       const result = await DocumentScanner.startScanner({
-        pageLimit: 6,
+        pageLimit: 1, // Scan only one document per session
         allowGalleryImport: true,
         jpeg: true,
         pdf: true,

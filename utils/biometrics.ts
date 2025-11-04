@@ -191,7 +191,7 @@ export const enableBiometrics = async (): Promise<{ success: boolean; error?: st
 
     // Test biometric authentication
     const authResult = await LocalAuthentication.authenticateAsync({
-      promptMessage: `Set up ${biometricsInfo.type} for SlipScan`,
+      promptMessage: `Set up ${biometricsInfo.type} for The Ledger`,
       fallbackLabel: "Use passcode",
       cancelLabel: "Cancel",
       disableDeviceFallback: false,

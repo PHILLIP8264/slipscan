@@ -54,7 +54,6 @@ export async function updateReceipt(
       Receipt,
       | "merchant"
       | "amount"
-      | "category"
       | "date"
       | "tags"
       | "imageUrl"
@@ -137,7 +136,7 @@ export async function getReceiptsByCategory(
   try {
     return await NoSQLDB.queryDocuments<Receipt>(
       COLLECTIONS.RECEIPTS,
-      (receipt) => receipt.category?.toLowerCase().includes(category.toLowerCase()) ?? false
+      (receipt) => receipt.items.some(item => item.category?.toLowerCase().includes(category.toLowerCase()))
     );
   } catch (error) {
     console.error("Error getting receipts by category:", error);
@@ -239,16 +238,61 @@ export async function getTotalSpendingByCategory(): Promise<{
     const spending: { [category: string]: number } = {};
 
     receipts.forEach((receipt) => {
-      const category = receipt.category || 'Uncategorized';
-      if (!spending[category]) {
-        spending[category] = 0;
-      }
-      spending[category] += receipt.amount;
+      // Aggregate spending by item categories
+      receipt.items.forEach((item) => {
+        const category = item.category || 'Uncategorized';
+        if (!spending[category]) {
+          spending[category] = 0;
+        }
+        spending[category] += item.lineTotal;
+      });
     });
 
     return spending;
   } catch (error) {
     console.error("Error getting total spending by category:", error);
+    throw error;
+  }
+}
+
+// Clear all receipts (development/debugging function)
+export async function clearAllReceipts(): Promise<boolean> {
+  try {
+    console.log('🗑️ Starting to clear all receipts...');
+    
+    const allReceipts = await listReceipts();
+    console.log(`📊 Found ${allReceipts.length} receipts to delete`);
+    
+    if (allReceipts.length === 0) {
+      console.log('✅ No receipts to delete');
+      return true;
+    }
+    
+    let deletedCount = 0;
+    let errorCount = 0;
+    
+    for (const receipt of allReceipts) {
+      try {
+        const deleted = await deleteReceipt(receipt._id);
+        if (deleted) {
+          deletedCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        console.error(`❌ Error deleting receipt ${receipt._id}:`, error);
+        errorCount++;
+      }
+    }
+    
+    console.log(`✅ Deleted ${deletedCount} receipts`);
+    if (errorCount > 0) {
+      console.warn(`⚠️ Failed to delete ${errorCount} receipts`);
+    }
+    
+    return errorCount === 0;
+  } catch (error) {
+    console.error("Error clearing all receipts:", error);
     throw error;
   }
 }

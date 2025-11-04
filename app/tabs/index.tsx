@@ -1,7 +1,7 @@
 import CategoryBreakdown from "@/assets/components/homeui/CategoryBreakdown";
 import TotalBudgetChart from "@/assets/components/homeui/TotalBudgetChart";
+import { getFontFamily } from "@/utils/fonts";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -16,11 +16,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { clearAllBudgets, getUserBudgetByMonth } from '../../utils/CRUD/budgetcrud';
+import { /* clearAllBudgets, */ getUserBudgetByMonth } from '../../utils/CRUD/budgetcrud';
+// import { clearAllReceipts } from '../../utils/CRUD/receiptcrud';
 import { getUserByEmail } from '../../utils/CRUD/usercrud';
 import DocumentScanner from '../../utils/DocumentScanner';
+import { globalTextStyles } from "../../utils/globalStyles";
 import { Budget } from '../../utils/localdb';
 import { useAuth } from '../contexts/AuthContext';
+
 
 export default function Index() {
   const router = useRouter();
@@ -140,17 +143,17 @@ export default function Index() {
       setIsScanning(true);
       
       // Show scanning started alert
-      Alert.alert(
+      /*Alert.alert(
         "📱 Starting Scanner",
         Platform.OS === "android" 
           ? "Launching ML Kit document scanner..." 
           : "Opening camera scanner...",
         [{ text: "OK" }]
-      );
+      );*/
 
       // Start the document scanner
       const result = await DocumentScanner.startScanner({
-        pageLimit: 3,
+        pageLimit: 1, // Scan only one document per session
         allowGalleryImport: true,
         scannerMode: "full",
         pdf: true,
@@ -161,7 +164,7 @@ export default function Index() {
       // Check if user cancelled the scan
       if (result.canceled) {
         // User cancelled - no need to show error, just return silently
-        console.log("User cancelled scanning");
+        //console.log("User cancelled scanning");
         return;
       }
 
@@ -196,6 +199,8 @@ export default function Index() {
     }
   };
 
+  /* 
+  // COMMENTED OUT - Clear All Budgets functionality
   const handleClearAllBudgets = async () => {
     Alert.alert(
       "🗑️ Clear All Budgets",
@@ -231,21 +236,55 @@ export default function Index() {
     );
   };
 
+  // COMMENTED OUT - Clear All Receipts functionality
+  const handleClearAllReceipts = async () => {
+    Alert.alert(
+      "🗑️ Clear All Receipts",
+      "This will permanently delete ALL receipt data from the database. This action cannot be undone.\n\nThis includes all scanned receipts, transaction data, and spending history.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "DELETE ALL",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const success = await clearAllReceipts();
+              if (success) {
+                // Refresh the data to update the UI
+                await loadBudgetData();
+                Alert.alert(
+                  "✅ Success",
+                  "All receipts have been cleared from the database. Your spending history has been reset.",
+                  [{ text: "OK" }]
+                );
+              } else {
+                Alert.alert(
+                  "⚠️ Partial Success",
+                  "Most receipts were deleted, but some errors occurred. Check the console for details.",
+                  [{ text: "OK" }]
+                );
+              }
+            } catch (error) {
+              console.error("Error clearing receipts:", error);
+              Alert.alert(
+                "❌ Error",
+                "Failed to clear receipts. Please try again.",
+                [{ text: "OK" }]
+              );
+            }
+          }
+        }
+      ]
+    );
+  };
+  */
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4285F4" />
-      
-      <LinearGradient
-        colors={['#4285F4', '#34A853']}
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerTitleSection}>
-            <Ionicons name="receipt" size={24} color="white" />
-            <Text style={styles.headerTitle}>SlipScan</Text>
-          </View>
-        </View>
-      </LinearGradient>
+      <StatusBar barStyle="dark-content" backgroundColor="#4285F4" />
 
       <ScrollView 
         style={styles.content}
@@ -258,8 +297,8 @@ export default function Index() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#4285F4']}
-            tintColor="#4285F4"
+            colors={['#E5398B']}
+            tintColor="#E5398B"
           />
         }
       >
@@ -302,8 +341,8 @@ export default function Index() {
           >
             <Ionicons 
               name={isScanning ? "hourglass" : "scan"} 
-              size={40} 
-              color="white" 
+              size={60} 
+              color="#000" 
             />
             <Text style={styles.mainScanButtonText}>
               {isScanning ? "Scanning..." : "Scan Receipt"}
@@ -323,7 +362,27 @@ export default function Index() {
             <CategoryBreakdown key={`categories-${refreshKey}`} userId={currentUserId} />
           </View>
 
+          {/* AI Feedback Button */}
+          <TouchableOpacity
+            style={styles.aiFeedbackButton}
+            onPress={() => router.push("/AIFeedbackScreen")}
+          >
+            <Ionicons name="sparkles" size={24} color="#E5398B" />
+            <View style={styles.aiFeedbackContent}>
+              <Text style={styles.aiFeedbackTitle}>AI Spending Feedback</Text>
+              <Text style={styles.aiFeedbackSubtext}>
+                Get personalized insights and recommendations
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#000" />
+          </TouchableOpacity>
+
+
+          {/* 
+          // COMMENTED OUT - Clear All Budgets and Receipts buttons
+          
           {/* Clear Budgets Button (Development/Debug) */}
+          {/*
           <TouchableOpacity
             style={styles.clearBudgetsButton}
             onPress={handleClearAllBudgets}
@@ -331,6 +390,17 @@ export default function Index() {
             <Ionicons name="trash" size={20} color="#dc2626" />
             <Text style={styles.clearBudgetsButtonText}>Clear All Budgets</Text>
           </TouchableOpacity>
+
+          {/* Clear Receipts Button (Development/Debug) */}
+          {/*
+          <TouchableOpacity
+            style={styles.clearReceiptsButton}
+            onPress={handleClearAllReceipts}
+          >
+            <Ionicons name="receipt-outline" size={20} color="#dc2626" />
+            <Text style={styles.clearReceiptsButtonText}>Clear All Receipts</Text>
+          </TouchableOpacity>
+          */}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -340,32 +410,14 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  headerGradient: {
-    paddingTop: 0,
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    paddingBottom: 24,
-  },
-  headerTitleSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'white',
-    marginLeft: 12,
+    backgroundColor: "#374151",
   },
   content: {
     flex: 1,
     marginTop: -20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
     overflow: 'hidden',
   },
   // Budget Overview Section
@@ -375,7 +427,7 @@ const styles = StyleSheet.create({
     marginTop: 30,
     borderRadius: 16,
     padding: 24,
-    shadowColor: "#000",
+    shadowColor: "#fff",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
@@ -385,11 +437,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   budgetTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#1a1a1a",
-    marginBottom: 16,
+    ...globalTextStyles.h3,
+    color: "#000",
+    marginBottom: 1,
     textAlign: 'center',
+    fontSize: 25,
+    fontFamily: getFontFamily('extraBold'),
   },
   budgetSummary: {
     flexDirection: 'row',
@@ -433,11 +486,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   mainScanButton: {
-    backgroundColor: "#4285F4",
+    backgroundColor: "#22D3EE",
     borderRadius: 20,
     padding: 24,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: "#fff",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -448,14 +501,15 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   mainScanButtonText: {
-    color: "white",
-    fontSize: 22,
-    fontWeight: "bold",
+    color: "#000",
+    fontSize: 25,
+    fontFamily: getFontFamily('extraBold'),
     marginTop: 12,
   },
   mainScanSubtext: {
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "#000",
     fontSize: 14,
+    fontFamily: getFontFamily('extraBold'),
     marginTop: 4,
     textAlign: 'center',
   },
@@ -500,7 +554,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 6,
   },
-  // Clear Budgets Button Styles
+  /*
+  // COMMENTED OUT - Clear Budgets Button Styles
   clearBudgetsButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -519,18 +574,70 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
+  // Clear Receipts Button Styles
+  clearReceiptsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  clearReceiptsButtonText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  */
   // Category Breakdown Container
   categoryBreakdownContainer: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
+    backgroundColor: '#fff',
+    fontFamily: getFontFamily('extraBold'),
     marginTop: 20,
     borderRadius: 16,
     padding: 20,
-    shadowColor: "#000",
+    shadowColor: "#fff",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  // AI Feedback Button Styles
+  aiFeedbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#A3E635',
+    marginTop: 30,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: "#fff",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: '#A3E635',
+  },
+  aiFeedbackContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  aiFeedbackTitle: {
+    fontSize: 20,
+    fontFamily: getFontFamily('extraBold'),
+    color: '#000',
+    marginBottom: 2,
+  },
+  aiFeedbackSubtext: {
+    fontSize: 14,
+    fontFamily: getFontFamily('bold'),
+    color: '#E5398B',
+    lineHeight: 18,
   },
 
 });

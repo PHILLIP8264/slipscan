@@ -1,20 +1,23 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { validateEmail, validatePassword } from '../../../utils/AuthManager';
+import { getFontFamily } from '../../../utils/fonts';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface SignupPageProps {
@@ -141,11 +144,17 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <ImageBackground 
+      source={require('../../../assets/images/landingbackground.png')}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardAvoid}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             {/* Header */}
@@ -171,6 +180,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your name"
+                  placeholderTextColor="#000000"
                   value={formData.displayName}
                   onChangeText={(text) => updateFormData('displayName', text)}
                   autoCapitalize="words"
@@ -188,6 +198,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
                     errors.email ? styles.inputError : null,
                   ]}
                   placeholder="Enter your email"
+                  placeholderTextColor="#000000"
                   value={formData.email}
                   onChangeText={(text) => updateFormData('email', text)}
                   keyboardType="email-address"
@@ -207,6 +218,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
                     errors.password ? styles.inputError : null,
                   ]}
                   placeholder="Create a password"
+                  placeholderTextColor="#000000"
                   value={formData.password}
                   onChangeText={(text) => updateFormData('password', text)}
                   secureTextEntry
@@ -247,6 +259,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
                     errors.confirmPassword ? styles.inputError : null,
                   ]}
                   placeholder="Confirm your password"
+                  placeholderTextColor="#000000"
                   value={formData.confirmPassword}
                   onChangeText={(text) => updateFormData('confirmPassword', text)}
                   secureTextEntry
@@ -395,7 +408,34 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
               We may update these Terms at any time. Continued use of the App after changes constitutes acceptance of the updated Terms.
             </Text>
 
-            <Text style={styles.sectionTitle}>8. Contact Information</Text>
+            <Text style={styles.sectionTitle}>8. Data Processing</Text>
+            <Text style={styles.sectionText}>
+              All automated extraction, parsing, and categorization of receipt data, including the reading of line items, amounts, dates, and merchants, are performed exclusively using Google AI Services.
+            </Text>
+            <Text style={styles.sectionText}>
+              Google's Role: Google acts as a third-party data processor for these specific AI-driven functions (e.g., optical character recognition and natural language processing).
+            </Text>
+            <Text style={styles.sectionText}>
+              Data Flow: When you upload a receipt image, the image and/or its extracted text is securely transmitted to Google AI Services for processing. The resulting structured data (e.g., item lists, totals, categories) is then returned to The Ledger's system for storage and budget calculation.
+            </Text>
+            <Text style={styles.sectionText}>
+              No Sharing of Personally Identifiable Information (PII): We do not transmit personally identifiable information (PII) such as your name, email address, or user ID to Google AI Services alongside the receipt data. Only the necessary visual or textual data from the receipt itself is sent for processing.
+            </Text>
+            <Text style={styles.sectionText}>
+              Confidentiality: The Ledger ensures that all data transmitted to and received from Google AI Services is treated confidentially and in accordance with our Privacy Policy.
+            </Text>
+            <Text style={styles.sectionText}>
+              Control: You retain all ownership and control over the data you upload to The Ledger.
+            </Text>
+            <Text style={styles.sectionText}>
+              Verification: You are responsible for reviewing and verifying the accuracy of all extracted data (including line items, categories, and amounts) displayed in the app and making any necessary edits before saving the receipt.
+            </Text>
+            <Text style={styles.sectionText}>
+              Liability: The Ledger is not liable for any financial errors or loss resulting from inaccuracies, omissions, or miscategorizations generated by the automated AI processing, provided those inaccuracies are not the result of negligence by The Ledger itself.
+            </Text>
+            
+
+            <Text style={styles.sectionTitle}>9. Contact Information</Text>
             <Text style={styles.sectionText}>
               For questions about these Terms, contact us at: support@slipscan.app
             </Text>
@@ -407,13 +447,19 @@ const SignupPage: React.FC<SignupPageProps> = ({ onBack, onLoginPress }) => {
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Semi-transparent overlay
   },
   keyboardAvoid: {
     flex: 1,
@@ -432,25 +478,38 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignSelf: 'flex-start',
+    marginTop: 20,
     marginBottom: 20,
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#E5398B',
   },
   backButtonText: {
+    textAlign: 'center',
+    marginBottom: 2,
     fontSize: 16,
-    color: '#2b6ef6',
-    fontWeight: '500',
+    color: '#fff',
+    fontFamily: getFontFamily('medium'),
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
+    fontSize: 35,
+    fontFamily: getFontFamily('extraBold'),
+    color: '#ffffff',
+    marginBottom: 15,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: -1, height: 1},
+    textShadowRadius: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    fontFamily: getFontFamily('regular'),
+    color: '#ffffff',
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: -1, height: 1},
+    textShadowRadius: 5,
   },
   form: {
     marginBottom: 20,
@@ -459,26 +518,28 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontSize: 15,
+    fontFamily: getFontFamily('semiBold'),
+    color: '#ffffff',
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#e1e5e9',
+    borderWidth: 2,
+    borderColor: '#E5398B',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#f8f9fa',
+    fontFamily: getFontFamily('regular'),
+    backgroundColor: '#ffffff',
   },
   inputError: {
     borderColor: '#dc3545',
-    backgroundColor: '#fff5f5',
+    backgroundColor: '#ffffff',
   },
   errorText: {
     fontSize: 12,
+    fontFamily: getFontFamily('regular'),
     color: '#dc3545',
     marginTop: 6,
     marginLeft: 4,
@@ -501,29 +562,29 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   requirementsContainer: {
-    backgroundColor: '#f8f9fa',
     borderRadius: 8,
     padding: 12,
     marginBottom: 20,
   },
   requirementsTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontSize: 15,
+    fontFamily: getFontFamily('bold'),
+    color: '#fff',
     marginBottom: 6,
   },
   requirement: {
     fontSize: 11,
-    color: '#666',
-    lineHeight: 16,
+    fontFamily: getFontFamily('bold'),
+    color: '#fff',
+    lineHeight: 20,
   },
   signupButton: {
-    backgroundColor: '#34c759',
+    backgroundColor: '#A3E635',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: '#34c759',
+    shadowColor: '#A3E635',
     shadowOffset: {
       width: 0,
       height: 4,
@@ -533,14 +594,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: '#a0a0a0',
+    backgroundColor: '#22D3EE',
     shadowOpacity: 0,
     elevation: 0,
   },
   signupButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#000',
+    fontSize: 20,
+    fontFamily: getFontFamily('semiBold'),
   },
   footer: {
     flexDirection: 'row',
@@ -549,13 +610,14 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   footerText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 16,
+    fontFamily: getFontFamily('regular'),
+    color: '#fff',
   },
   loginText: {
     fontSize: 14,
-    color: '#2b6ef6',
-    fontWeight: '600',
+    color: '#E5398B',
+    fontFamily: getFontFamily('semiBold'),
   },
   termsContainer: {
     marginBottom: 20,
@@ -569,7 +631,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: '#22D3EE',
     borderRadius: 4,
     marginRight: 12,
     marginTop: 2,
@@ -578,22 +640,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   checkboxChecked: {
-    backgroundColor: '#2b6ef6',
-    borderColor: '#2b6ef6',
+    backgroundColor: '#A3E635',
+    borderColor: '#A3E635',
   },
   checkmark: {
-    color: '#fff',
+    color: '#000',
     fontSize: 12,
     fontWeight: 'bold',
   },
   termsText: {
     fontSize: 14,
-    color: '#666',
+    color: '#fff',
     flex: 1,
     lineHeight: 20,
+    fontFamily: getFontFamily('semiBold'),
   },
   termsLink: {
-    color: '#2b6ef6',
+    color: '#E5398B',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
@@ -609,22 +672,23 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e1e5e9',
+    marginTop: 15,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
     color: '#1a1a1a',
+    fontFamily: getFontFamily('extraBold'),
   },
   modalCloseButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#2b6ef6',
+    backgroundColor: '#E5398B',
     borderRadius: 8,
   },
   modalCloseText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: getFontFamily('semiBold'),
   },
   modalContent: {
     flex: 1,
@@ -633,16 +697,17 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#1a1a1a',
     marginTop: 20,
     marginBottom: 8,
+    fontFamily: getFontFamily('bold'),
   },
   sectionText: {
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
     marginBottom: 12,
+    fontFamily: getFontFamily('medium'),
   },
   lastUpdated: {
     fontSize: 12,

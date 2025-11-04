@@ -1,3 +1,4 @@
+import { getFontFamily } from "@/utils/fonts";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginLeft: 10,
-    color: '#666',
+    color: '#fff',
     fontSize: 14,
   },
   header: {
@@ -233,14 +234,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontFamily: getFontFamily('extraBold'),
+    color: '#000',
     marginLeft: 8,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#666',
+    color: '#fff',
     fontSize: 14,
     paddingVertical: 20,
   },
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   categoryItem: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#e1e1e1ff',
     borderRadius: 12,
     padding: 15,
   },
@@ -276,12 +277,12 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+    fontFamily: getFontFamily('extraBold'),
+    color: '#000',
   },
   categoryProgress: {
     fontSize: 12,
-    color: '#666',
+    color: '#000',
     marginTop: 2,
   },
   categoryValues: {
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
   percentageText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#000',
   },
   overspentText: {
     color: '#dc2626',
@@ -302,7 +303,7 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     height: 6,
-    backgroundColor: '#E5E5E5',
+    backgroundColor: '#A3E635',
     borderRadius: 3,
     overflow: 'hidden',
     flexDirection: 'row',

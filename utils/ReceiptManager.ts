@@ -101,12 +101,14 @@ class ReceiptManager {
   }
 
   // Get receipts by category
-  static async getReceiptsByCategory(
+  async getReceiptsByCategory(
     categoryId: string
   ): Promise<StoredReceipt[]> {
     try {
-      const allReceipts = await this.getAllReceipts();
-      return allReceipts.filter((receipt) => receipt.category === categoryId);
+      const allReceipts = await ReceiptManager.getAllReceipts();
+      return allReceipts.filter((receipt: any) => 
+        receipt.items && receipt.items.some((item: any) => item.category === categoryId)
+      );
     } catch (error) {
       console.error("Error getting receipts by category:", error);
       return [];
@@ -212,11 +214,27 @@ class ReceiptManager {
         const amount = parseFloat(receipt.total) || 0;
         totalSpent += amount;
 
-        if (!categoryTotals[receipt.category]) {
-          categoryTotals[receipt.category] = { amount: 0, count: 0 };
+        // Aggregate by item categories
+        if (receipt.items && Array.isArray(receipt.items)) {
+          receipt.items.forEach((item: any) => {
+            const category = item.category || 'Uncategorized';
+            const itemAmount = item.lineTotal || 0;
+            
+            if (!categoryTotals[category]) {
+              categoryTotals[category] = { amount: 0, count: 0 };
+            }
+            categoryTotals[category].amount += itemAmount;
+            categoryTotals[category].count += 1;
+          });
+        } else {
+          // Fallback for receipts without items
+          const category = 'Uncategorized';
+          if (!categoryTotals[category]) {
+            categoryTotals[category] = { amount: 0, count: 0 };
+          }
+          categoryTotals[category].amount += amount;
+          categoryTotals[category].count += 1;
         }
-        categoryTotals[receipt.category].amount += amount;
-        categoryTotals[receipt.category].count += 1;
       });
 
       // Create breakdown with category info

@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 /**
  * Image Manager Utility
@@ -11,7 +11,7 @@ class ImageManager {
 
   private constructor() {
     // Create receipts directory path - FileSystem.documentDirectory is available at runtime
-    this.receiptsDir = `${(FileSystem as any).documentDirectory}receipts/`;
+    this.receiptsDir = `${FileSystem.documentDirectory}receipts/`;
   }
 
   public static getInstance(): ImageManager {
@@ -175,7 +175,8 @@ class ImageManager {
         const imagePath = `${this.receiptsDir}${imageFile}`;
         const info = await this.getImageInfo(imagePath);
         
-        if (info && info.modificationTime && info.modificationTime < cutoffDate.getTime()) {
+        // Check if file exists and has modification time property
+        if (info && info.exists && (info as any).modificationTime && (info as any).modificationTime < cutoffDate.getTime()) {
           const deleted = await this.deleteReceiptImage(imagePath);
           if (deleted) deletedCount++;
         }

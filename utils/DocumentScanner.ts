@@ -25,7 +25,7 @@ const GoogleVisionService = {
 };
 
 export type ScannerOptions = {
-  pageLimit?: number;
+  pageLimit?: number; // Default: 1 (scan only one document)
   allowGalleryImport?: boolean;
   jpeg?: boolean;
   pdf?: boolean;
@@ -246,7 +246,7 @@ const startScanner = async (opts?: ScannerOptions): Promise<ScanResult> => {
       
       try {
         const options = {
-          pageLimit: opts?.pageLimit || 6,
+          pageLimit: opts?.pageLimit || 1, // Changed from 6 to 1 - scan only one document
           allowGalleryImport: opts?.allowGalleryImport ?? true,
           scannerMode: (opts?.scannerMode || "full") as "base" | "full",
           resultFormat: (opts?.pdf ? "pdf" : "jpeg") as "pdf" | "jpeg",

@@ -12,6 +12,7 @@ import { ProcessingResult } from '../types/receipt';
 export type ReceiptCategory =
   | 'Groceries'
   | 'Restaurant'
+  | 'Takeout'
   | 'Transport'
   | 'Entertainment'
   | 'Utilities'
@@ -193,7 +194,8 @@ CRITICAL INSTRUCTIONS:
 
 AVAILABLE CATEGORIES (use exact names):
 - Groceries (food items, beverages, household consumables)
-- Restaurant (prepared food, dining out)
+- Restaurant (prepared food, dining out, sit-down meals)
+- Takeout (takeaway food, delivery, fast food, food trucks)
 - Transport (fuel, public transport, taxi, uber)
 - Entertainment (movies, games, streaming)
 - Utilities (electricity, water, internet, phone bills)

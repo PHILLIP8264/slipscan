@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, ImageBackground, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { authenticateWithBiometrics } from '../../../utils/biometrics';
+import { getFontFamily } from '../../../utils/fonts';
 
 type Props = {
     onLogin?: () => void;
@@ -15,9 +17,9 @@ export default function ReturnPage({ onLogin, onSignInDifferent, lastUserName, h
     const router = useRouter();
     const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-    console.log('🔄 ReturnPage props:', { lastUserName, hadBiometrics });
-    console.log('🔄 ReturnPage lastUserName type:', typeof lastUserName);
-    console.log('🔄 ReturnPage lastUserName truthy?', !!lastUserName);
+    //console.log('🔄 ReturnPage props:', { lastUserName, hadBiometrics });
+    //console.log('🔄 ReturnPage lastUserName type:', typeof lastUserName);
+    //console.log('🔄 ReturnPage lastUserName truthy?', !!lastUserName);
 
     const handleLogin = async () => {
         console.log(hadBiometrics);
@@ -26,7 +28,7 @@ export default function ReturnPage({ onLogin, onSignInDifferent, lastUserName, h
             setIsAuthenticating(true);
             try {
                 const result = await authenticateWithBiometrics(
-                    "Sign in to SlipScan"
+                    "Sign in to The Ledger"
                 );
                 
                 if (result.success) {
@@ -73,12 +75,20 @@ export default function ReturnPage({ onLogin, onSignInDifferent, lastUserName, h
     };
 
     return (
-        <SafeAreaView style={styles.safe}>
-            <View style={styles.container}>
-                <Text style={styles.title}>Welcome Back</Text>
-                <Text style={styles.emailText}>
-                    {lastUserName ? lastUserName : '[No name - undefined]'}
-                </Text>
+        <ImageBackground 
+            source={require('../../../assets/images/landingbackground.png')}
+            style={styles.backgroundImage}
+            resizeMode="cover"
+        >
+            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+            <SafeAreaView style={styles.safe}>
+                <View style={styles.overlay}>
+                    <View style={styles.container}>
+                        <Text style={styles.title}>Welcome Back</Text>
+                        <View style={styles.titleLine} />
+                        <Text style={styles.emailText}>
+                            {lastUserName ? lastUserName : '[No name - undefined]'}
+                        </Text>
 
                 <TouchableOpacity 
                     style={[styles.button, styles.primary, isAuthenticating && styles.buttonDisabled]} 
@@ -89,24 +99,38 @@ export default function ReturnPage({ onLogin, onSignInDifferent, lastUserName, h
                     {isAuthenticating ? (
                         <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                        <Text style={styles.buttonText}>
-                            {hadBiometrics ? '🔓 Sign In with Biometrics' : 'Sign In'}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            {hadBiometrics && <Ionicons name="finger-print" size={20} color="#000" style={{ marginRight: 8 }} />}
+                            <Text style={styles.buttonText}>
+                                {hadBiometrics ? 'Sign In with Biometrics' : 'Sign In'}
+                            </Text>
+                        </View>
                     )}
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.button, styles.secondary]} onPress={handleSignInDifferent} activeOpacity={0.8}>
                     <Text style={styles.buttonText}>Sign in with a different account</Text>
                 </TouchableOpacity>
-            </View>
-        </SafeAreaView>
+                    </View>
+                </View>
+            </SafeAreaView>
+        </ImageBackground>
     );
 }
 
 const styles = StyleSheet.create({
+    backgroundImage: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+    },
     safe: {
         flex: 1,
-        backgroundColor: "#fff",
+        backgroundColor: "transparent",
+    },
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
     },
     container: {
         flex: 1,
@@ -115,15 +139,36 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     title: {
-        fontSize: 28,
-        marginBottom: 16,
-        fontWeight: "600",
+        fontSize: 45,
+        marginBottom: 10,
+        fontFamily: getFontFamily('semiBold'),
+        color: "#ffffff",
+        textAlign: "center",
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: {width: -1, height: 1},
+        textShadowRadius: 10,
+    },
+    titleLine: {
+        width: '70%',
+        height: 4,
+        backgroundColor: '#ffffff',
+        borderRadius: 5,
+        marginBottom: 20,
+        alignSelf: 'center',
+        shadowColor: '#A3E635',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 4,
     },
     emailText: {
-        fontSize: 16,
-        color: "#666",
-        marginBottom: 8,
+        fontSize: 25,
+        fontFamily: getFontFamily('semiBold'),
+        color: "#ffffff",
+        marginBottom: 20,
         textAlign: "center",
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: {width: -1, height: 1},
+        textShadowRadius: 5,
     },
     biometricText: {
         fontSize: 14,
@@ -138,20 +183,22 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         marginVertical: 8,
         alignItems: "center",
+        
     },
     primary: {
-        backgroundColor: "#1e90ff",
+        backgroundColor: "#A3E635",
+        
     },
     secondary: {
-        backgroundColor: "#6c757d",
+        backgroundColor: "#22D3EE",
     },
     buttonDisabled: {
         backgroundColor: "#a0a0a0",
         opacity: 0.7,
     },
     buttonText: {
-        color: "#fff",
+        color: "#000",
         fontSize: 16,
-        fontWeight: "500",
+        fontFamily: getFontFamily('extraBold'),
     },
 });

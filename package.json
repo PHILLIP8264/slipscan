@@ -1,5 +1,5 @@
 {
-  "name": "slipscan",
+  "name": "theledger",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -11,8 +11,10 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@expo-google-fonts/merriweather-sans": "^0.4.2",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.2",
+    "@google/generative-ai": "^0.24.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
@@ -37,6 +39,7 @@
     "expo-local-authentication": "^17.0.7",
     "expo-router": "~6.0.12",
     "expo-secure-store": "^15.0.7",
+    "expo-sharing": "^14.0.7",
     "expo-splash-screen": "~31.0.10",
     "expo-status-bar": "~3.0.8",
     "expo-symbols": "~1.0.7",

@@ -1,6 +1,7 @@
+import { getFontFamily } from "@/utils/fonts";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import PieChart from "react-native-pie-chart";
+import Svg, { Circle } from "react-native-svg";
 import { getUserBudgetByMonth } from "../../../utils/CRUD/budgetcrud";
 
 interface TotalBudgetChartProps {
@@ -67,7 +68,7 @@ export default function TotalBudgetChart({ userId }: TotalBudgetChartProps) {
     if (totalBudget === 0) {
       return {
         values: [100],
-        colors: ['#E5E5E5'],
+        colors: ['#fff'],
         labels: ['No Budget Set']
       };
     }
@@ -77,7 +78,7 @@ export default function TotalBudgetChart({ userId }: TotalBudgetChartProps) {
     
     return {
       values: remaining > 0 ? [spent, remaining] : [totalBudget],
-      colors: remaining > 0 ? ['#ef0f0fff', '#0bcd11ff'] : ['#ef0f0fff'],
+      colors: remaining > 0 ? ['#ef0f0fff', '#22D3EE'] : ['#ef0f0fff'],
       labels: remaining > 0 ? ['Spent', 'Remaining'] : ['Overspent']
     };
   };
@@ -114,19 +115,57 @@ export default function TotalBudgetChart({ userId }: TotalBudgetChartProps) {
   const chartData = getChartData();
   const displayValues = getDisplayValues();
 
+  // Constants for calculation
+const radius = 100;
+const strokeWidth = 25;
+
+// Dynamic values
+const percentage = displayValues.percentageSpent / 100;
+const capRotation = 360 * percentage;
+
   return (
     <View style={styles.container}>
       {/* Chart */}
       <View style={styles.chartWrapper}>
-        <PieChart
-          widthAndHeight={250}
-          
-          series={chartData.values.map((value, index) => ({
-            value: Math.max(0, value), // Ensure no negative values reach the chart
-            color: chartData.colors[index]
-          }))}
-          cover={0.80}
-        />
+        <Svg width={250} height={250} style={styles.svgChart}>
+  {/* 1. Background circle - Remains the same */}
+  <Circle
+    cx="125"
+    cy="125"
+    r={radius}
+    stroke="#22D3EE"
+    strokeWidth={strokeWidth}
+    fill="transparent"
+  />
+
+  {/* 2. Progress Arc (Flat end) */}
+  <Circle
+    cx="125"
+    cy="125"
+    r={radius}
+    stroke="#DC2626"
+    strokeWidth={strokeWidth}
+    fill="transparent"
+    strokeLinecap="butt" 
+    strokeDasharray={`${2 * Math.PI * 100 * (displayValues.percentageSpent / 100)} ${2 * Math.PI * 100}`}
+    strokeDashoffset={-Math.PI * 100 / 2} 
+    transform="rotate(-180 125 125)" 
+  />
+  
+  {/* 3. The Custom Rounded End Cap */}
+  {percentage > 0 && ( 
+    <Circle
+      cx="125" 
+      cy="25" 
+      r={strokeWidth / 2} 
+      fill="#DC2626" 
+      strokeDasharray={`${2 * Math.PI * 100 * (displayValues.percentageSpent / 100)} ${2 * Math.PI * 100}`}
+      strokeDashoffset={-Math.PI * 100 / 2} 
+      origin="125, 125" 
+      rotation={capRotation}
+    />
+  )}
+</Svg>
         
         {/* Center text */}
         <View style={styles.centerContent}>
@@ -142,7 +181,7 @@ export default function TotalBudgetChart({ userId }: TotalBudgetChartProps) {
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
             <View style={[styles.colorDot, { backgroundColor: '#ef0f0fff' }]} />
-            <Text style={styles.summaryLabel}>Spent</Text>
+            <Text style={styles.summaryLabel}>Spent:</Text>
             <Text style={styles.summaryValue}>R{displayValues.totalSpent.toFixed(2)}</Text>
           </View>
           
@@ -150,8 +189,8 @@ export default function TotalBudgetChart({ userId }: TotalBudgetChartProps) {
           
           {displayValues.remaining >= 0 && (
             <View style={styles.summaryItem}>
-              <View style={[styles.colorDot, { backgroundColor: '#0bcd11ff' }]} />
-              <Text style={styles.summaryLabel}>Remaining</Text>
+              <View style={[styles.colorDot, { backgroundColor: '#22D3EE' }]} />
+              <Text style={styles.summaryLabel}>Remaining:</Text>
               <Text style={styles.summaryValue}>R{displayValues.remaining.toFixed(2)}</Text>
             </View>
           )}
@@ -181,7 +220,7 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         marginTop: 10,
-        color: '#666',
+        color: '#E5398B',
         fontSize: 14,
     },
     errorText: {
@@ -195,6 +234,9 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'center',
     },
+    svgChart: {
+        transform: [{ rotate: '0deg' }],
+    },
     centerContent: {
         position: 'absolute',
         top: 0,
@@ -206,12 +248,13 @@ const styles = StyleSheet.create({
     },
     percentageText: {
         fontSize: 30,
-        fontWeight: 'bold',
-        color: '#333',
+        fontFamily: getFontFamily('extraBold'),
+        color: '#000',
     },
     centerLabel: {
-        fontSize: 20,
-        color: '#d66262ff',
+        fontSize: 25,
+        color: '#e50000ff',
+        fontFamily: getFontFamily('extraBold'),
         marginTop: 2,
     },
     summaryContainer: {
@@ -238,14 +281,15 @@ const styles = StyleSheet.create({
         marginRight: 6,
     },
     summaryLabel: {
-        fontSize: 12,
-        color: '#666',
+        fontSize: 15,
+        color: '#000',
+        fontFamily: getFontFamily('extraBold'),
         marginRight: 4,
     },
     summaryValue: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
+        fontSize: 15,
+        fontFamily: getFontFamily('extraBold'),
+        color: '#000',
     },
     totalRow: {
         flexDirection: 'row',
@@ -256,14 +300,14 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     totalLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
+        fontSize: 20,
+        fontFamily: getFontFamily('extraBold'),
+        color: '#000',
     },
     totalValue: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#667eea',
+        fontSize: 20,
+        fontFamily: getFontFamily('extraBold'),
+        color: '#22D3EE',
     },
     overspentRow: {
         flexDirection: 'row',

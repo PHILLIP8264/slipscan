@@ -63,7 +63,6 @@ export interface Receipt {
   items: ReceiptItem[];
   
   // Legacy fields
-  category?: string; // Keep for backward compatibility
   tags: string[];
   
   // Media & Processing
@@ -322,9 +321,7 @@ export function convertLocalReceiptToProcessed(receipt: Receipt): any {
     
     // Additional fields for compatibility
     currency: receipt.currency,
-    locale: receipt.locale,
-    category: receipt.category,
-    overallCategory: receipt.category
+    locale: receipt.locale
   };
   
   console.log('✅ CONVERT BACK DEBUG - Output ProcessedReceipt:', JSON.stringify(processedReceipt, null, 2));
@@ -480,8 +477,7 @@ export function convertProcessedReceiptToLocal(processedReceipt: any, imageUrl?:
     // Line items
     items: items,
     
-    // Category and tags
-    category: processedReceipt.overallCategory || processedReceipt.category,
+    // Tags
     tags: processedReceipt.tags || [],
     
     // Media and processing

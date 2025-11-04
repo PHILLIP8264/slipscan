@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs, useRouter } from "expo-router";
 import { TouchableOpacity } from "react-native";
@@ -38,22 +39,21 @@ export default function Layout() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: "#007AFF",
-        tabBarInactiveTintColor: "gray",
+        tabBarActiveTintColor: "#A3E635",
+        tabBarInactiveTintColor: "#22D3EE",
       })}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
-          headerStyle: { backgroundColor: "white" },
+          headerStyle: { backgroundColor: "#22D3EE" },
           headerTitleStyle: {
-            color: "black",
-            fontWeight: "regular",
+            color: "#000",
+            fontFamily: getFontFamily('extraBold'),
             fontSize: 30,
           },
-          headerTintColor: "white",
-          headerShadowVisible: false,
+          headerTintColor: "#fff",
           headerRight: () => <SettingsButton color="#000" />,
         }}
       />
@@ -61,20 +61,28 @@ export default function Layout() {
         name="search"
         options={{
           title: "Search Receipts",
-          headerStyle: { backgroundColor: "#28a745" },
-          headerTitleStyle: { color: "#fff", fontWeight: "bold" },
+          headerStyle: { backgroundColor: "#A3E635" },
+          headerTitleStyle: {
+            color: "#000",
+            fontFamily: getFontFamily('extraBold'),
+            fontSize: 30,
+           },
           headerTintColor: "#fff",
-          headerRight: () => <SettingsButton color="#fff" />,
+          headerRight: () => <SettingsButton color="#000" />,
         }}
       />
       <Tabs.Screen
         name="budget"
         options={{
           title: "Budget Manager",
-          headerStyle: { backgroundColor: "#007AFF" },
-          headerTitleStyle: { color: "#fff", fontWeight: "bold" },
+          headerStyle: { backgroundColor: "#E5398B" },
+          headerTitleStyle: { 
+            color: "#000", 
+            fontFamily: getFontFamily('extraBold'),
+            fontSize: 30, 
+          },
           headerTintColor: "#fff",
-          headerRight: () => <SettingsButton color="#fff" />,
+          headerRight: () => <SettingsButton color="#000" />,
         }}
       />
     </Tabs>

@@ -29,7 +29,12 @@ export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, onPress }) =>
       </View>
       
       <View style={styles.receiptDetails}>
-        <Text style={styles.category}>{receipt.category || 'Uncategorized'}</Text>
+        <Text style={styles.category}>
+          {receipt.items.length > 0 
+            ? [...new Set(receipt.items.map(item => item.category || 'Uncategorized'))].join(', ')
+            : 'Uncategorized'
+          }
+        </Text>
         <Text style={styles.date}>{formatDate(receipt.date)}</Text>
       </View>
       

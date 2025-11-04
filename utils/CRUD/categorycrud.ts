@@ -95,6 +95,7 @@ export function getHardcodedCategories() {
   return [
     { name: 'Groceries', color: '#34C759', budgetAmount: 600 },
     { name: 'Restaurant', color: '#FF9500', budgetAmount: 300 },
+    { name: 'Takeout', color: '#FF6B6B', budgetAmount: 200 },
     { name: 'Transport', color: '#007AFF', budgetAmount: 200 },
     { name: 'Entertainment', color: '#AF52DE', budgetAmount: 150 },
     { name: 'Utilities', color: '#FF3B30', budgetAmount: 250 },

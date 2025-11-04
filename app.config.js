@@ -3,8 +3,8 @@ import 'dotenv/config';
 
 export default ({ config }) => ({
   ...config,
-  name: "SlipScan",
-  slug: "SlipScan",
+  name: "The Ledger",
+  slug: "TheLedger",
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/images/app-icon.png",

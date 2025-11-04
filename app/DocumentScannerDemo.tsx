@@ -2,13 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function DocumentScannerDemo() {
@@ -23,17 +23,16 @@ export default function DocumentScannerDemo() {
         success: true,
         pages: [
           { imageUri: "mock://receipt-1.jpg" },
-          { imageUri: "mock://receipt-2.jpg" },
         ],
         pdfUri: "mock://scanned-receipt.pdf",
-        pdfPageCount: 2,
+        pdfPageCount: 1,
       };
 
       setDemoResults(mockResult);
 
       Alert.alert(
         "🎉 ML Kit Scan Complete!",
-        `Successfully scanned ${mockResult.pages.length} pages with:\n\n✅ Auto edge detection\n✅ Perspective correction\n✅ Image enhancement\n✅ PDF generation`,
+        `Successfully scanned ${mockResult.pages.length} page with:\n\n✅ Auto edge detection\n✅ Perspective correction\n✅ Image enhancement\n✅ PDF generation`,
         [
           { text: "View Results", onPress: () => {} },
           { text: "Scan Another", onPress: () => setDemoResults(null) },

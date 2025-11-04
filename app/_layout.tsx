@@ -1,9 +1,12 @@
 import { Stack } from "expo-router";
 import React, { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
+import { useAppFonts } from "../utils/fonts";
 import ImageManager from "../utils/ImageManager";
 import { AuthProvider } from "./contexts/AuthContext";
 
 export default function RootLayout() {
+  const fontsLoaded = useAppFonts();
   
   useEffect(() => {
     // Initialize ImageManager when app starts
@@ -18,6 +21,15 @@ export default function RootLayout() {
     
     initializeImageManager();
   }, []);
+
+  // Show loading screen while fonts are loading
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
     <AuthProvider>

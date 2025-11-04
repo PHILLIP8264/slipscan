@@ -192,7 +192,7 @@ export default function EditReceipt() {
         const receiptWithCategories = { ...result.receipt };
         if (receiptWithCategories.items) {
           receiptWithCategories.items = receiptWithCategories.items.map((item: any, index: number) => {
-            const defaultCategories = ['Groceries', 'Restaurant', 'Transport', 'Entertainment'];
+            const defaultCategories = ['Groceries', 'Restaurant', 'Takeout', 'Transport', 'Entertainment'];
             return {
               ...item,
               category: item.category || defaultCategories[index % defaultCategories.length],

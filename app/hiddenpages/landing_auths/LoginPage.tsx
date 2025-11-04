@@ -1,16 +1,18 @@
+import { getFontFamily } from '@/utils/fonts';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
+  ImageBackground,
   SafeAreaView,
+  ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { validateEmail } from '../../../utils/AuthManager';
 import { useAuth } from '../../contexts/AuthContext';
@@ -114,14 +116,22 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack, onSignUpPress }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
+    <ImageBackground 
+      source={require('../../../assets/images/landingbackground.png')}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <SafeAreaView style={styles.container}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.content}>
+            {/* Header */}
+            <View style={styles.header}>
             {onBack && (
               <TouchableOpacity 
                 style={styles.backButton} 
@@ -146,6 +156,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack, onSignUpPress }) => {
                   emailError ? styles.inputError : null,
                 ]}
                 placeholder="Enter your email"
+                placeholderTextColor="#000000"
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
@@ -168,6 +179,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack, onSignUpPress }) => {
                   passwordError ? styles.inputError : null,
                 ]}
                 placeholder="Enter your password"
+                placeholderTextColor="#000000"
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
@@ -212,32 +224,42 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack, onSignUpPress }) => {
               )}
             </TouchableOpacity>
           </View>
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={handleSignUpPress} activeOpacity={0.7}>
-              <Text style={styles.signUpText}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </ScrollView>
+        
+        {/* Footer positioned outside ScrollView */}
+        <View style={styles.fixedFooter}>
+          <Text style={styles.footerText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={handleSignUpPress} activeOpacity={0.7}>
+            <Text style={styles.signUpText}>Sign Up</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Semi-transparent overlay
   },
-  keyboardAvoid: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
   },
   header: {
     alignItems: 'center',
@@ -245,46 +267,64 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignSelf: 'flex-start',
+    marginTop: 20,
     marginBottom: 20,
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#E5398B',
   },
   backButtonText: {
+    textAlign: 'center',
+    marginBottom: 2,
     fontSize: 16,
-    color: '#2b6ef6',
-    fontWeight: '500',
+    color: '#fff',
+    fontFamily: getFontFamily('medium'),
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
+    fontSize: 35,
+    fontFamily: getFontFamily('extraBold'),
+    color: '#ffffff',
+    marginBottom: 15,
+    marginTop: 50,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: -1, height: 1},
+    textShadowRadius: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    fontFamily: getFontFamily('regular'),
+    color: '#ffffff',
     textAlign: 'center',
+    marginBottom: -60,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: -1, height: 1},
+    textShadowRadius: 5,
   },
   form: {
     flex: 1,
+    justifyContent: 'center',
   },
   inputContainer: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontSize: 15,
+    fontFamily: getFontFamily('semiBold'),
+    color: '#ffffff',
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#e1e5e9',
+    borderWidth: 2,
+    borderColor: '#E5398B',
     borderRadius: 12,
     paddingHorizontal: 16,
+    color: '#000000',
     paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#f8f9fa',
+    fontFamily: getFontFamily('regular'),
+    backgroundColor: '#ffffff',
   },
   inputError: {
     borderColor: '#dc3545',
@@ -297,12 +337,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   loginButton: {
-    backgroundColor: '#2b6ef6',
+    backgroundColor: '#A3E635',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 20,
-    shadowColor: '#2b6ef6',
+    shadowColor: '#A3E635',
     shadowOffset: {
       width: 0,
       height: 4,
@@ -312,13 +352,13 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: '#a0a0a0',
+    backgroundColor: '#22D3EE',
     shadowOpacity: 0,
     elevation: 0,
   },
   loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: '#000',
+    fontSize: 20,
     fontWeight: '600',
   },
   forgotPassword: {
@@ -328,24 +368,27 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#2b6ef6',
-    fontWeight: '500',
+    color: '#E5398B',
+    fontFamily: getFontFamily('extraBold'),
   },
-  footer: {
+  fixedFooter: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
     paddingBottom: 30,
-    marginTop: 20,
+    paddingTop: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   footerText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 16,
+    fontFamily: getFontFamily('regular'),
+    color: '#fff',
   },
   signUpText: {
     fontSize: 14,
-    color: '#2b6ef6',
-    fontWeight: '600',
+    color: '#E5398B',
+    fontFamily: getFontFamily('semiBold'),
   },
 });
 

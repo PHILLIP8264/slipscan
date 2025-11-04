@@ -4,6 +4,9 @@
  * This file defines TypeScript interfaces for receipt processing with item categorization.
  */
 
+// Import types for AI feedback functionality
+import type { Budget, Receipt } from '../utils/localdb';
+
 // Base interfaces for receipt processing workflow
 export interface ProcessingResult<T> {
   success: boolean;
@@ -238,4 +241,54 @@ export function convertLegacyToProcessed(legacy: LegacyReceiptData): Partial<Pro
       dataQuality: legacy.confidence > 0.8 ? 'high' : legacy.confidence > 0.5 ? 'medium' : 'low',
     },
   };
+}
+
+// AI Feedback Types
+export interface MonthlySpendingData {
+  month: string; // Format: "YYYY-MM" (e.g., "2025-10")
+  receipts: Receipt[];
+  budgetData?: Budget;
+  totalSpent: number;
+  categoryBreakdown: { [category: string]: number };
+  merchantBreakdown: { [merchant: string]: number };
+  averageTransactionAmount: number;
+  totalTransactions: number;
+}
+
+export interface AIFeedbackRequest {
+  monthlyData: MonthlySpendingData;
+  previousMonthData?: MonthlySpendingData; // For comparison
+  userContext?: {
+    currency: string;
+    locale: string;
+    preferences?: string[];
+  };
+}
+
+export interface AIFeedbackResponse {
+  success: boolean;
+  feedback?: {
+    summary: string;
+    insights: string[];
+    recommendations: string[];
+    budgetAnalysis?: {
+      overspentCategories: string[];
+      underspentCategories: string[];
+      budgetUtilization: number; // Percentage
+    };
+    trends?: {
+      comparedToPrevious?: string;
+      seasonalNotes?: string;
+    };
+    actionItems: string[];
+  };
+  error?: string;
+  processingTime?: number;
+}
+
+export interface MonthOption {
+  label: string; // "October 2025"
+  value: string; // "2025-10"
+  year: number;
+  month: number;
 }

@@ -2,23 +2,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Modal,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import DataExportService from '../services/DataExportService';
 import AuthManager from '../utils/AuthManager';
 import {
-  authenticateWithBiometrics,
-  isBiometricsAvailable,
-  isBiometricsEnabled,
-  setBiometricsEnabled
+    authenticateWithBiometrics,
+    isBiometricsAvailable,
+    isBiometricsEnabled,
+    setBiometricsEnabled
 } from '../utils/biometrics';
 import { useAuth } from './contexts/AuthContext';
 
@@ -77,7 +78,7 @@ export default function SettingsPage() {
           
           Alert.alert(
             'Biometrics Enabled', 
-            `${biometricsType} authentication has been enabled for SlipScan.`
+            `${biometricsType} authentication has been enabled for The Ledger.`
           );
         } else {
           // Authentication failed - keep toggle OFF and don't save
@@ -261,7 +262,52 @@ export default function SettingsPage() {
     );
   };
 
-
+  const handleExportData = async () => {
+    try {
+      console.log('🗂️ Export data requested...');
+      
+      // Show loading and get statistics
+      Alert.alert(
+        'Preparing Export...',
+        'Getting your data ready for export...',
+        [{ text: 'OK' }]
+      );
+      
+      const stats = await DataExportService.getExportStatistics();
+      
+      // Show confirmation with statistics
+      Alert.alert(
+        'Export Data to Excel/CSV',
+        `Ready to export:\n\n📁 ${stats.receiptsCount} receipts\n📊 ${stats.budgetEntriesCount} budget entries\n💰 Total: R${stats.totalAmount.toFixed(2)}\n📅 ${stats.dateRange}\n\nThis will create CSV files that you can share with your accountant for tax purposes.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Export', 
+            onPress: async () => {
+              try {
+                await DataExportService.exportAsCSV();
+              } catch (error) {
+                console.error('Export failed:', error);
+                Alert.alert(
+                  'Export Failed', 
+                  'Unable to export your data. Please try again.',
+                  [{ text: 'OK' }]
+                );
+              }
+            }
+          }
+        ]
+      );
+      
+    } catch (error) {
+      console.error('Error preparing export:', error);
+      Alert.alert(
+        'Export Error',
+        'Unable to prepare your data for export. Please ensure you have receipts and budgets to export.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   const SettingItem = ({ 
     icon, 
@@ -412,9 +458,7 @@ export default function SettingsPage() {
               icon="cloud-upload"
               title="Export Data"
               subtitle="Export your receipts and budgets"
-              onPress={() => {
-                Alert.alert('Coming Soon', 'Data export will be available in a future update');
-              }}
+              onPress={handleExportData}
             />
             <SettingItem
               icon="trash"
@@ -448,17 +492,17 @@ export default function SettingsPage() {
             <SettingItem
               icon="help-circle"
               title="Help & Support"
-              subtitle="Get help with SlipScan"
+              subtitle="Get help with The Ledger"
               onPress={() => {
-                Alert.alert('Help & Support', 'For support, please contact us at support@slipscan.app');
+                Alert.alert('Help & Support', 'For support, please contact us at support@theledger.app');
               }}
             />
             <SettingItem
               icon="information-circle"
-              title="About SlipScan"
+              title="About The Ledger"
               subtitle="Version 1.0.0"
               onPress={() => {
-                Alert.alert('SlipScan v1.0.0', 'Smart receipt scanning and budget management app.');
+                Alert.alert('The Ledger v1.0.0', 'Smart receipt scanning and budget management app.');
               }}
             />
           </View>
