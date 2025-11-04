@@ -110,22 +110,38 @@ export function getHardcodedCategories() {
 export async function initializeBudgetCategories(): Promise<void> {
   try {
     const existingCategories = await listCategories();
+    const defaultCategories = getHardcodedCategories();
     
-    if (existingCategories.length === 0) {
-      console.log('No budget categories found, creating default categories...');
+    // Clean up any existing duplicates first
+    await cleanupDuplicateCategories();
+    
+    // Check which default categories are missing
+    const existingNames = existingCategories.map(c => c.name);
+    const missingCategories = defaultCategories.filter(
+      defaultCat => !existingNames.includes(defaultCat.name)
+    );
+    
+    if (missingCategories.length > 0) {
+      console.log(`Found ${missingCategories.length} missing default categories, creating them...`);
       
-      const defaultCategories = getHardcodedCategories();
-
-      for (const categoryData of defaultCategories) {
+      for (const categoryData of missingCategories) {
         try {
-          await createCategory(categoryData);
-          console.log(`Created default category: ${categoryData.name}`);
+          // Double check if category already exists before creating
+          const existing = await getCategoryByName(categoryData.name);
+          if (!existing) {
+            await createCategory(categoryData);
+            console.log(`Created default category: ${categoryData.name}`);
+          } else {
+            console.log(`Category already exists: ${categoryData.name}`);
+          }
         } catch (error) {
           console.error(`Error creating category ${categoryData.name}:`, error);
         }
       }
       
-      console.log('Default budget categories initialized successfully');
+      console.log('Default budget categories initialization complete');
+    } else {
+      console.log('All default categories already exist');
     }
   } catch (error) {
     console.error("Error initializing budget categories:", error);
@@ -143,6 +159,42 @@ export async function getCategoryByName(name: string): Promise<Category | null> 
     return categories.length > 0 ? categories[0] : null;
   } catch (error) {
     console.error("Error getting category by name:", error);
+    throw error;
+  }
+}
+
+// Clean up duplicate categories (keep only one of each name)
+export async function cleanupDuplicateCategories(): Promise<void> {
+  try {
+    const allCategories = await listCategories();
+    const seenNames = new Set<string>();
+    const duplicatesToDelete: string[] = [];
+    
+    // Identify duplicates
+    for (const category of allCategories) {
+      if (seenNames.has(category.name)) {
+        duplicatesToDelete.push(category._id);
+        console.log(`Found duplicate category: ${category.name} (ID: ${category._id})`);
+      } else {
+        seenNames.add(category.name);
+      }
+    }
+    
+    // Delete duplicates
+    for (const id of duplicatesToDelete) {
+      try {
+        await deleteCategory(id);
+        console.log(`Deleted duplicate category with ID: ${id}`);
+      } catch (error) {
+        console.error(`Error deleting duplicate category ${id}:`, error);
+      }
+    }
+    
+    if (duplicatesToDelete.length > 0) {
+      console.log(`Cleaned up ${duplicatesToDelete.length} duplicate categories`);
+    }
+  } catch (error) {
+    console.error("Error cleaning up duplicate categories:", error);
     throw error;
   }
 }

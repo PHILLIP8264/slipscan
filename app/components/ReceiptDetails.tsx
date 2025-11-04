@@ -3,20 +3,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { ProcessedReceipt } from "../../types/receipt";
-import { initializeBudgetCategories, listCategories } from "../../utils/CRUD/categorycrud";
+import { cleanupDuplicateCategories, getHardcodedCategories, initializeBudgetCategories, listCategories } from "../../utils/CRUD/categorycrud";
 import { getReceiptById } from "../../utils/CRUD/receiptcrud";
 import { Category, convertLocalReceiptToProcessed } from "../../utils/localdb";
 import receiptBudgetIntegration from "../../utils/ReceiptBudgetIntegration";
@@ -56,9 +56,24 @@ export default function ReceiptDetails() {
 
   const loadCategories = async () => {
     try {
+      // Clean up any duplicates and initialize default categories
+      await cleanupDuplicateCategories();
       await initializeBudgetCategories();
-      const categoryList = await listCategories();
-      setCategories(categoryList);
+      
+      const categories = await listCategories();
+      
+      // Ensure we have the correct hardcoded categories
+      const hardcodedCategories = getHardcodedCategories();
+      const hardcodedNames = hardcodedCategories.map(c => c.name);
+      
+      // Filter to only include categories that match our hardcoded list
+      // This ensures consistency with the auto budget updating system
+      const validCategories = categories.filter(category => 
+        hardcodedNames.includes(category.name)
+      );
+      
+      console.log('ReceiptDetails - Available categories (matching hardcoded list):', validCategories.map(c => c.name));
+      setCategories(validCategories);
     } catch (error) {
       console.error('Failed to load categories:', error);
     }

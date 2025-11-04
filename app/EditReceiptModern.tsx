@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import receiptProcessingService from "../services/ReceiptProcessingService";
 import { ProcessedReceipt } from "../types/receipt";
-import { initializeBudgetCategories, listCategories } from "../utils/CRUD/categorycrud";
+import { cleanupDuplicateCategories, getHardcodedCategories, initializeBudgetCategories, listCategories } from "../utils/CRUD/categorycrud";
 import { Category } from "../utils/localdb";
 import receiptBudgetIntegration from "../utils/ReceiptBudgetIntegration";
 import { useAuth } from "./contexts/AuthContext";
@@ -67,10 +67,24 @@ export default function EditReceipt() {
 
   const loadCategories = async () => {
     try {
-      // Initialize default categories if needed
+      // Clean up any duplicates and initialize default categories
+      await cleanupDuplicateCategories();
       await initializeBudgetCategories();
-      const categoryList = await listCategories();
-      setCategories(categoryList);
+      
+      const categories = await listCategories();
+      
+      // Ensure we have the correct hardcoded categories
+      const hardcodedCategories = getHardcodedCategories();
+      const hardcodedNames = hardcodedCategories.map(c => c.name);
+      
+      // Filter to only include categories that match our hardcoded list
+      // This ensures consistency with the auto budget updating system
+      const validCategories = categories.filter(category => 
+        hardcodedNames.includes(category.name)
+      );
+      
+      console.log('EditReceiptModern - Available categories (matching hardcoded list):', validCategories.map(c => c.name));
+      setCategories(validCategories);
     } catch (error) {
       console.error('Failed to load categories:', error);
     }

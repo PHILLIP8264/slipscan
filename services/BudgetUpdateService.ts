@@ -11,7 +11,7 @@
 
 import { ProcessedReceipt } from '../types/receipt';
 import { createBudget, updateBudget } from '../utils/CRUD/budgetcrud';
-import { initializeBudgetCategories, listCategories } from '../utils/CRUD/categorycrud';
+import { cleanupDuplicateCategories, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../utils/CRUD/categorycrud';
 import { Budget, CategoryBudget, COLLECTIONS, NoSQLDB, Receipt, ReceiptItem, User } from '../utils/localdb';
 
 interface BudgetUpdateResult {
@@ -36,7 +36,7 @@ class BudgetUpdateService {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     
     // Get month name and full year
-    const monthName = dateObj.toLocaleString('en-US', { month: 'long' });
+    const monthName = dateObj.toLocaleString('en-ZAR', { month: 'long' });
     const year = dateObj.getFullYear();
     
     return `${monthName} ${year}`;
@@ -54,8 +54,17 @@ class BudgetUpdateService {
     }
 
     // Initialize categories if needed
+    await cleanupDuplicateCategories();
     await initializeBudgetCategories();
-    const categories = await listCategories();
+    
+    const allCategories = await listCategories();
+    
+    // Filter to only include categories that match our hardcoded list
+    const hardcodedCategories = getHardcodedCategories();
+    const hardcodedNames = hardcodedCategories.map(c => c.name);
+    const categories = allCategories.filter(category => 
+      hardcodedNames.includes(category.name)
+    );
     
     // Create category budgets with proper initial budget amounts from categories
     const categoryBudgets: CategoryBudget[] = categories.map(category => ({
@@ -177,7 +186,13 @@ class BudgetUpdateService {
         
         // If still not found, try to find by category ID
         if (!categoryBudget) {
-          const categories = await listCategories();
+          const allCategories = await listCategories();
+          const hardcodedCategories = getHardcodedCategories();
+          const hardcodedNames = hardcodedCategories.map(c => c.name);
+          const categories = allCategories.filter(category => 
+            hardcodedNames.includes(category.name)
+          );
+          
           const category = categories.find((cat: any) => 
             cat.name.toLowerCase().trim() === item.category!.toLowerCase().trim()
           );
@@ -188,7 +203,13 @@ class BudgetUpdateService {
         
         if (!categoryBudget) {
           // Category doesn't exist in budget - dynamically add it
-          const categories = await listCategories();
+          const allCategories = await listCategories();
+          const hardcodedCategories = getHardcodedCategories();
+          const hardcodedNames = hardcodedCategories.map(c => c.name);
+          const categories = allCategories.filter(category => 
+            hardcodedNames.includes(category.name)
+          );
+          
           let category = categories.find((cat: any) => 
             cat.name.toLowerCase().trim() === item.category!.toLowerCase().trim()
           );
@@ -216,13 +237,11 @@ class BudgetUpdateService {
           categoryBudget = newCategoryBudget;
         }
         // Calculate spending change (negative for reversal)
-        // Remove 15% VAT if it's included in the line total
-        const preVATAmount = item.lineTotal / 1.15; // Remove South African 15% VAT
-        const spendingChange = isReversal ? -preVATAmount : preVATAmount;
+        const spendingChange = isReversal ? -item.lineTotal : item.lineTotal;
 
-        // Update category spending
-        categoryBudget.spent += spendingChange;
-        categoryBudget.remainingAmount = categoryBudget.budgetAmount - categoryBudget.spent;
+        // Update category spending - use exact arithmetic to preserve cents
+        categoryBudget.spent = Number((categoryBudget.spent + spendingChange).toFixed(2));
+        categoryBudget.remainingAmount = Number((categoryBudget.budgetAmount - categoryBudget.spent).toFixed(2));
 
         // Check for overspending
         if (categoryBudget.remainingAmount < 0) {
@@ -317,11 +336,10 @@ class BudgetUpdateService {
       // Handle ProcessedReceipt format - convert to ReceiptItem format
       
       const convertedItems = (receipt as ProcessedReceipt).items.map((item, index) => {
-        // Try multiple field names for line total
+        // Use the AI-provided line total directly (already includes VAT)
         const lineTotal = (item as any).linetotal || 
                          (item as any).lineTotal || 
                          item.totalPrice || 
-                         ((item as any).itemprice * (item.quantity || 1)) || 
                          0;
                          
         return {

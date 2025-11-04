@@ -1,4 +1,5 @@
-import Homepie from "@/assets/components/homeui/Homepiechart";
+import CategoryBreakdown from "@/assets/components/homeui/CategoryBreakdown";
+import TotalBudgetChart from "@/assets/components/homeui/TotalBudgetChart";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
@@ -265,31 +266,13 @@ export default function Index() {
               </View>
             ) : (
               <View style={styles.budgetSummary}>
-                <View style={styles.budgetSummaryItem}>
-                  <Text style={styles.budgetAmount}>
-                    {loadingBudget ? "Loading..." : formatCurrency(getTotalBudget())}
-                  </Text>
-                  <Text style={styles.budgetLabel}>Total Budget</Text>
-                </View>
-                <View style={styles.budgetSummaryItem}>
-                  <Text style={styles.spentAmount}>
-                    {loadingBudget ? "Loading..." : formatCurrency(getTotalSpent())}
-                  </Text>
-                  <Text style={styles.budgetLabel}>Spent</Text>
-                </View>
-                <View style={styles.budgetSummaryItem}>
-                  <Text style={styles.remainingAmount}>
-                    {loadingBudget ? "Loading..." : formatCurrency(getRemainingBudget())}
-                  </Text>
-                  <Text style={styles.budgetLabel}>Remaining</Text>
-                </View>
               </View>
             )}
           </View>
           
-          {/* Donut Chart */}
+          {/* Total Budget Chart */}
           <View style={styles.chartContainer}>
-            <Homepie userId={currentUserId} />
+            <TotalBudgetChart userId={currentUserId} />
           </View>
         </View>
 
@@ -320,6 +303,11 @@ export default function Index() {
               }
             </Text>
           </TouchableOpacity>
+
+          {/* Category Breakdown */}
+          <View style={styles.categoryBreakdownContainer}>
+            <CategoryBreakdown userId={currentUserId} />
+          </View>
 
           {/* Clear Budgets Button (Development/Debug) */}
           <TouchableOpacity
@@ -516,6 +504,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  // Category Breakdown Container
+  categoryBreakdownContainer: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 
 });

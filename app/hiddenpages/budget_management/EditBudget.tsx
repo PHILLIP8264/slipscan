@@ -2,25 +2,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import {
-    AddCategoryModal,
-    BudgetCategoryBreakdown,
-    CategoryBudgetItem,
-    CategoryDropdown
+  AddCategoryModal,
+  BudgetCategoryBreakdown,
+  CategoryBudgetItem,
+  CategoryDropdown
 } from '../../../assets/components/budget';
 import { getBudgetById, getUserBudgets, updateBudget } from '../../../utils/CRUD/budgetcrud';
-import { createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
+import { cleanupDuplicateCategories, createCategory, getHardcodedCategories, initializeBudgetCategories, listCategories } from '../../../utils/CRUD/categorycrud';
 import { getUserByEmail } from '../../../utils/CRUD/usercrud';
 import { Budget, Category, CategoryBudget } from '../../../utils/localdb';
 import { useAuth } from '../../contexts/AuthContext';
@@ -78,9 +78,23 @@ export default function EditBudget() {
       setInitialLoading(true);
       
       // Initialize categories first
+      await cleanupDuplicateCategories();
       await initializeBudgetCategories();
+      
       const categories = await listCategories();
-      setAvailableCategories(categories);
+      
+      // Ensure we have the correct hardcoded categories
+      const hardcodedCategories = getHardcodedCategories();
+      const hardcodedNames = hardcodedCategories.map(c => c.name);
+      
+      // Filter to only include categories that match our hardcoded list
+      // This ensures consistency with the auto budget updating system
+      const validCategories = categories.filter(category => 
+        hardcodedNames.includes(category.name)
+      );
+      
+      console.log('EditBudget - Available categories (matching hardcoded list):', validCategories.map(c => c.name));
+      setAvailableCategories(validCategories);
 
       // Load the specific budget and user's budgets
       const [budget, userBudgets] = await Promise.all([

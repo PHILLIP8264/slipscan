@@ -271,9 +271,17 @@ export async function setupMockData(): Promise<void> {
     }
 
     // If we couldn't create new ones, get existing categories
-    const { listCategories } = await import('./categorycrud');
+    const { listCategories, getHardcodedCategories } = await import('./categorycrud');
     const allCategories = await listCategories();
-    const categoriesToUse = createdCategories.length > 0 ? createdCategories : allCategories.slice(0, 6);
+    
+    // Filter to only valid categories for consistency
+    const hardcodedCategories = getHardcodedCategories();
+    const hardcodedNames = hardcodedCategories.map((c: any) => c.name);
+    const validCategories = allCategories.filter((category: any) => 
+      hardcodedNames.includes(category.name)
+    );
+    
+    const categoriesToUse = createdCategories.length > 0 ? createdCategories : validCategories.slice(0, 6);
 
     if (categoriesToUse.length === 0) {
       console.error('No categories available for mock budgets');
