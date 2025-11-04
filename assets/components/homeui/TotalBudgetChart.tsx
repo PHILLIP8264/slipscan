@@ -89,7 +89,7 @@ export default function TotalBudgetChart({ userId }: TotalBudgetChartProps) {
     return {
       totalBudget,
       totalSpent,
-      remaining,
+      remaining, // Keep actual value for display (can be negative)
       percentageSpent: Number(percentageSpent.toFixed(1))
     };
   };
@@ -122,7 +122,7 @@ export default function TotalBudgetChart({ userId }: TotalBudgetChartProps) {
           widthAndHeight={250}
           
           series={chartData.values.map((value, index) => ({
-            value,
+            value: Math.max(0, value), // Ensure no negative values reach the chart
             color: chartData.colors[index]
           }))}
           cover={0.80}

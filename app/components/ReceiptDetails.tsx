@@ -44,6 +44,7 @@ export default function ReceiptDetails() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number>(-1);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     loadReceipt();
@@ -253,23 +254,31 @@ export default function ReceiptDetails() {
   };
 
   const updateItem = (itemIndex: number, field: string, value: any) => {
-    if (!editableData.items) return;
+    if (!editableData.items) {
+      return;
+    }
     
-    console.log(`🏷️ CATEGORY UPDATE - Item ${itemIndex}, Field: ${field}, Value:`, value);
-    
-    const updatedItems = [...editableData.items];
-    updatedItems[itemIndex] = { ...updatedItems[itemIndex], [field]: value };
-    
-    setEditableData({
-      ...editableData,
-      items: updatedItems
+    // Force an immediate state update with proper object creation
+    setEditableData(prevData => {
+      const newItems = prevData.items!.map((item, index) => {
+        if (index === itemIndex) {
+          const updatedItem = { 
+            ...item,
+            [field]: value 
+          } as any;
+          return updatedItem;
+        }
+        return { ...item };
+      });
+      
+      return {
+        ...prevData,
+        items: newItems
+      };
     });
-
-    console.log('📝 Updated editableData.items:', updatedItems.map(item => ({ 
-      name: (item as any).name, 
-      category: (item as any).category,
-      categoryConfidence: (item as any).categoryConfidence 
-    })));
+    
+    // Force re-render immediately after state update
+    setRefreshKey(prev => prev + 1);
   };
 
   const openCategoryPicker = (itemIndex: number) => {
@@ -627,7 +636,7 @@ export default function ReceiptDetails() {
           
           <View style={styles.cardContent}>
             {editableData.items?.map((item, index) => (
-              <View key={index} style={styles.modernItemCard}>
+              <View key={`${index}-${refreshKey}`} style={styles.modernItemCard}>
                 <View style={styles.itemMainInfo}>
                   <TextInput
                     style={[styles.modernInput, styles.itemNameInput, !isEditing && styles.modernInputDisabled]}

@@ -208,17 +208,47 @@ class ReceiptBudgetIntegrationImpl implements ReceiptBudgetIntegration {
       console.log('🔄 Getting original receipt for budget update...');
       const originalReceipt = await getReceiptById(originalReceiptId);
 
-      // Save updated receipt to database FIRST
-      const savedReceipt = await RelationshipHelpers.addProcessedReceiptToUser(
-        user._id,
-        finalReceipt,
-        finalReceipt.originalImageUri
-      );
+      if (!originalReceipt) {
+        return { 
+          success: false, 
+          error: 'Original receipt not found' 
+        };
+      }
+
+      // Update existing receipt instead of creating new one
+      console.log('🔄 Updating existing receipt in database...');
+      const { updateFullReceipt } = await import('./CRUD/receiptcrud');
+      
+      // Convert ProcessedReceipt to Receipt format for update
+      const receiptUpdates = {
+        merchant: finalReceipt.merchant.name,
+        amount: finalReceipt.totals.total || 0,
+        category: finalReceipt.items?.[0]?.category || 'Uncategorized', // Use first item's category
+        date: new Date(finalReceipt.transaction.date),
+        tags: finalReceipt.tags || [],
+        imageUrl: finalReceipt.originalImageUri,
+        ocrText: finalReceipt.rawText || '',
+        items: finalReceipt.items?.map(item => ({
+          name: item.name,
+          quantity: item.quantity || 1,
+          itemPrice: (item as any).itemprice || item.unitPrice || 0,
+          lineTotal: (item as any).linetotal || item.totalPrice || 0,
+          confidence: item.confidence || 0.8,
+          category: item.category,
+          categoryConfidence: item.categoryConfidence || 1.0
+        })) || [],
+        currency: 'ZAR',
+        locale: 'en-ZA',
+        confidence: finalReceipt.confidence.overall || 0.8,
+        updatedAt: new Date()
+      };
+
+      const savedReceipt = await updateFullReceipt(originalReceiptId, receiptUpdates);
 
       if (!savedReceipt) {
         return { 
           success: false, 
-          error: 'Failed to save receipt to local database' 
+          error: 'Failed to update receipt in local database' 
         };
       }
 

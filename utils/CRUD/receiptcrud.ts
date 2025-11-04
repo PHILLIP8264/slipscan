@@ -74,6 +74,26 @@ export async function updateReceipt(
   }
 }
 
+// Update full receipt with all fields (for editing)
+export async function updateFullReceipt(
+  id: string,
+  updates: Partial<Receipt>
+): Promise<Receipt | null> {
+  try {
+    console.log('📝 CRUD DEBUG - Updating full receipt:', id, updates);
+    const updatedReceipt = await NoSQLDB.updateDocument<Receipt>(
+      COLLECTIONS.RECEIPTS,
+      id,
+      updates
+    );
+    console.log('📝 CRUD DEBUG - Updated receipt result:', updatedReceipt);
+    return updatedReceipt;
+  } catch (error) {
+    console.error("Error updating full receipt:", error);
+    throw error;
+  }
+}
+
 // Delete a receipt by ID
 export async function deleteReceipt(id: string): Promise<boolean> {
   try {

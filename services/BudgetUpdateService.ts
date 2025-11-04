@@ -53,36 +53,19 @@ class BudgetUpdateService {
       return existingBudget;
     }
 
-    // Initialize categories if needed
+    // Initialize categories if needed (ensures default categories exist in database)
     await cleanupDuplicateCategories();
     await initializeBudgetCategories();
     
-    const allCategories = await listCategories();
-    
-    // Filter to only include categories that match our hardcoded list
-    const hardcodedCategories = getHardcodedCategories();
-    const hardcodedNames = hardcodedCategories.map(c => c.name);
-    const categories = allCategories.filter(category => 
-      hardcodedNames.includes(category.name)
-    );
-    
-    // Create category budgets with proper initial budget amounts from categories
-    const categoryBudgets: CategoryBudget[] = categories.map(category => ({
-      categoryId: category._id,
-      categoryName: category.name,
-      budgetAmount: category.budgetAmount || 0, // Use category's default budget amount
-      spent: 0,
-      remainingAmount: category.budgetAmount || 0 // Initially equals budgetAmount
-    }));
-
-    // Create new budget with user linking
+    // Create new budget with empty category list - categories will be added dynamically as receipts are processed
     const newBudget = await createBudget({
       month: monthYear,
-      categoryBudgets,
+      categoryBudgets: [], // Start with empty categories - they'll be added based on actual spending
       userId: userId // Pass userId to automatically link budget to user
     });
 
-    console.log('✅ Created new budget:', newBudget._id, 'and automatically linked to user:', userId);
+    console.log('✅ Created new empty budget:', newBudget._id, 'for month:', monthYear, 'linked to user:', userId);
+    console.log('📝 Categories will be added dynamically based on receipt spending patterns');
     return newBudget;
   }
 
