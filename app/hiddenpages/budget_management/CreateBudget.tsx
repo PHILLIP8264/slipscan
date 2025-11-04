@@ -251,9 +251,15 @@ export default function CreateBudget() {
       
       // Check if budget already exists for this month
       const existingBudgets = await getUserBudgets(currentUserId);
+      console.log('🔍 Checking for existing budgets:', {
+        monthString,
+        existingBudgets: existingBudgets.map(b => ({ month: b.month, id: b._id }))
+      });
+      
       const existingBudget = existingBudgets.find(budget => budget.month === monthString);
       
       if (existingBudget) {
+        console.log('❌ Budget already exists:', existingBudget);
         Alert.alert(
           'Budget Already Exists', 
           `A budget for ${monthString} already exists. Please edit the existing budget or choose a different month.`
@@ -262,17 +268,20 @@ export default function CreateBudget() {
         return;
       }
       
+      console.log('✅ No existing budget found, proceeding with creation');
+      
       const budgetData = {
         month: monthString,
         categoryBudgets: categoryBudgets,
         userId: currentUserId // Link budget to current user
       };
       
-      console.log('Creating budget with data:', budgetData);
+      console.log('🏗️ Creating budget with data:', budgetData);
+      console.log('📅 Month format being saved:', monthString);
       
       const createdBudget = await createBudget(budgetData);
       
-      console.log('Budget created successfully:', createdBudget);
+      console.log('✅ Budget created successfully:', createdBudget);
       
       // Verify the budget was saved by checking user's budgets
       const userBudgets = await getUserBudgets(currentUserId);

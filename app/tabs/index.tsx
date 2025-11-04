@@ -2,8 +2,8 @@ import CategoryBreakdown from "@/assets/components/homeui/CategoryBreakdown";
 import TotalBudgetChart from "@/assets/components/homeui/TotalBudgetChart";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -31,6 +31,7 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMockData, setLoadingMockData] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     loadCurrentUser();
@@ -41,6 +42,16 @@ export default function Index() {
       loadBudgetData();
     }
   }, [currentUserId]);
+
+  // Refresh data when screen comes into focus (e.g., after deleting a receipt)
+  useFocusEffect(
+    useCallback(() => {
+      if (currentUserId) {
+        console.log('🔄 Home screen focused - refreshing data...');
+        loadBudgetData();
+      }
+    }, [currentUserId])
+  );
 
   const loadCurrentUser = async () => {
     try {
@@ -76,6 +87,9 @@ export default function Index() {
       
       const budget = await getUserBudgetByMonth(currentUserId, monthYear);
       setBudgetData(budget);
+      
+      // Force re-render of chart components
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error("Error loading budget data:", error);
       setBudgetData(null);
@@ -272,7 +286,7 @@ export default function Index() {
           
           {/* Total Budget Chart */}
           <View style={styles.chartContainer}>
-            <TotalBudgetChart userId={currentUserId} />
+            <TotalBudgetChart key={`chart-${refreshKey}`} userId={currentUserId} />
           </View>
         </View>
 
@@ -306,7 +320,7 @@ export default function Index() {
 
           {/* Category Breakdown */}
           <View style={styles.categoryBreakdownContainer}>
-            <CategoryBreakdown userId={currentUserId} />
+            <CategoryBreakdown key={`categories-${refreshKey}`} userId={currentUserId} />
           </View>
 
           {/* Clear Budgets Button (Development/Debug) */}

@@ -1,20 +1,20 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  View
+    Alert,
+    Animated,
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    View
 } from 'react-native';
 import {
-  AmountRangeFilter,
-  DateRangeFilter,
-  FilterButtons,
-  ReceiptList,
-  SearchBar,
-  type SearchFilter,
+    AmountRangeFilter,
+    DateRangeFilter,
+    FilterButtons,
+    ReceiptList,
+    SearchBar,
+    type SearchFilter,
 } from '../../assets/components/search';
 import { getUserByEmail, getUserReceipts } from '../../utils/CRUD/usercrud';
 import { Receipt } from '../../utils/localdb';
@@ -45,6 +45,14 @@ export default function SearchPage() {
       loadAllReceipts();
     }
   }, [authState.lastUserEmail]);
+
+  // Refresh receipts when screen comes into focus (e.g., after deleting a receipt)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Search screen focused - refreshing receipts...');
+      loadAllReceipts();
+    }, [authState.lastUserEmail])
+  );
 
   useEffect(() => {
     handleSearch();

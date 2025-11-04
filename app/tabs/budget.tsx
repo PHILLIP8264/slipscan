@@ -83,6 +83,12 @@ export default function BudgetPage() {
       // Get user-specific budgets instead of all budgets
       let userBudgets = await getUserBudgets(currentUserId);
       
+      console.log('💰 BUDGETS LOADED:', {
+        userId: currentUserId,
+        budgetCount: userBudgets.length,
+        budgets: userBudgets.map(b => ({ month: b.month, id: b._id, totalBudget: b.totalBudget }))
+      });
+      
       // User has no budgets - this is normal, they can create budgets via the UI
       // No need for mock data since budgets are created through receipt processing
       // or manual budget creation
@@ -103,39 +109,141 @@ export default function BudgetPage() {
     const currentYear = now.getFullYear();
     const currentMonth = `${currentMonthName} ${currentYear}`;
     
+    console.log('🗓️ BUDGET FILTERING DEBUG:', {
+      now: now.toISOString(),
+      nowDay: now.getDate(),
+      nowMonth: now.getMonth() + 1, // getMonth() is 0-based
+      nowYear: now.getFullYear(),
+      currentMonth,
+      selectedTab,
+      totalBudgets: budgets.length
+    });
+    
     const parseMonthYear = (monthStr: string): Date => {
       try {
-        // Handle "Month Year" format (e.g., "November 2025")
-        const [month, year] = monthStr.split(' ');
-        const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
-        return new Date(parseInt(year), monthIndex, 1);
-      } catch {
-        // Fallback for old format or invalid strings
-        return new Date(monthStr);
+        // Handle "Month Year" format (e.g., "October 2025", "November 2025")
+        const [monthName, yearStr] = monthStr.split(' ');
+        if (!monthName || !yearStr) {
+          console.warn('Invalid month string format:', monthStr);
+          return new Date();
+        }
+        
+        const year = parseInt(yearStr);
+        
+        // Map month names to numbers (0-based for JavaScript Date)
+        const monthMap: {[key: string]: number} = {
+          'January': 0, 'February': 1, 'March': 2, 'April': 3,
+          'May': 4, 'June': 5, 'July': 6, 'August': 7,
+          'September': 8, 'October': 9, 'November': 10, 'December': 11
+        };
+        
+        const monthIndex = monthMap[monthName];
+        if (monthIndex === undefined) {
+          console.warn('Unknown month name:', monthName);
+          return new Date();
+        }
+        
+        const result = new Date(year, monthIndex, 1);
+        console.log('📅 Parsed month:', {
+          original: monthStr,
+          monthName,
+          monthIndex,
+          year,
+          result: result.toISOString()
+        });
+        
+        return result;
+      } catch (error) {
+        console.warn('Error parsing month year:', monthStr, error);
+        return new Date();
       }
     };
 
-    const currentDate = parseMonthYear(currentMonth);
+    // For comparison, we need to use the first day of the current month
+    // Any month BEFORE the current month is "past"
+    // The current month is "current" 
+    // Any month AFTER the current month is "upcoming"
+    const currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    console.log('📅 Current date comparison logic:', {
+      actualNow: now.toISOString(),
+      currentMonth,
+      currentDateForComparison: currentDate.toISOString(),
+      currentMonthNum: now.getMonth() + 1,
+      currentYear: now.getFullYear()
+    });
+    
+    // Log all budgets first
+    console.log('📋 All budgets:', budgets.map(b => b.month));
     
     const filtered = budgets.filter(budget => {
       const budgetDate = parseMonthYear(budget.month);
       
+      // Skip invalid dates
+      if (isNaN(budgetDate.getTime()) || isNaN(currentDate.getTime())) {
+        console.warn('Skipping budget due to invalid date:', budget.month);
+        return false;
+      }
+      
+      const isPast = budgetDate < currentDate;
+      const isCurrent = budget.month === currentMonth;
+      const isUpcoming = budgetDate > currentDate;
+      
+      console.log(`🔍 DETAILED BUDGET CHECK "${budget.month}":`, {
+        budgetMonth: budget.month,
+        budgetDate: budgetDate.toISOString(),
+        budgetMonthNum: budgetDate.getMonth() + 1,
+        budgetYear: budgetDate.getFullYear(),
+        budgetTime: budgetDate.getTime(),
+        
+        currentMonth: currentMonth,
+        currentDate: currentDate.toISOString(),
+        currentMonthNum: currentDate.getMonth() + 1,
+        currentYear: currentDate.getFullYear(),
+        currentTime: currentDate.getTime(),
+        
+        comparison: {
+          'budgetDate < currentDate': budgetDate < currentDate,
+          'budgetDate === currentDate': budgetDate.getTime() === currentDate.getTime(),
+          'budgetDate > currentDate': budgetDate > currentDate,
+          'budget.month === currentMonth': budget.month === currentMonth
+        },
+        
+        results: {
+          isPast,
+          isCurrent,
+          isUpcoming
+        },
+        
+        selectedTab,
+        willInclude: selectedTab === 'past' ? isPast : 
+                    selectedTab === 'current' ? isCurrent :
+                    selectedTab === 'upcoming' ? isUpcoming : true
+      });
+      
       switch (selectedTab) {
         case 'past':
-          return budgetDate < currentDate;
+          return isPast;
         case 'current':
-          return budget.month === currentMonth;
+          return isCurrent;
         case 'upcoming':
-          return budgetDate > currentDate;
+          return isUpcoming;
         default:
           return true;
       }
     });
     
+    console.log(`✅ Filtered budgets for "${selectedTab}" tab:`, filtered.map(b => b.month));
+    
     // Sort budgets by month for proper display order
     filtered.sort((a, b) => {
       const dateA = parseMonthYear(a.month);
       const dateB = parseMonthYear(b.month);
+      
+      // Handle invalid dates - put them at the end
+      if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+      if (isNaN(dateA.getTime())) return 1;
+      if (isNaN(dateB.getTime())) return -1;
       
       if (selectedTab === 'past') {
         // For past budgets, show most recent first (descending)

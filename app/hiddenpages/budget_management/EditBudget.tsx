@@ -120,14 +120,41 @@ export default function EditBudget() {
       
       // Parse month from "Month Year" format or legacy "YYYY-MM" format
       let budgetDate = new Date();
+      
+      console.log('🔧 EditBudget - Parsing month:', budget.month);
+      
       if (budget.month.includes(' ')) {
-        // "Month Year" format
-        const [monthName, year] = budget.month.split(' ');
-        budgetDate = new Date(`${monthName} 1, ${year}`);
+        // "Month Year" format (e.g., "October 2025")
+        const [monthName, yearStr] = budget.month.split(' ');
+        const year = parseInt(yearStr);
+        
+        // Map month names to numbers (0-based for JavaScript Date)
+        const monthMap: {[key: string]: number} = {
+          'January': 0, 'February': 1, 'March': 2, 'April': 3,
+          'May': 4, 'June': 5, 'July': 6, 'August': 7,
+          'September': 8, 'October': 9, 'November': 10, 'December': 11
+        };
+        
+        const monthIndex = monthMap[monthName];
+        if (monthIndex !== undefined && !isNaN(year)) {
+          budgetDate = new Date(year, monthIndex, 1);
+          console.log('✅ Parsed month successfully:', {
+            original: budget.month,
+            monthName,
+            monthIndex,
+            year,
+            result: budgetDate.toISOString()
+          });
+        } else {
+          console.error('❌ Failed to parse month:', { monthName, year });
+          budgetDate = new Date(); // Fallback to current date
+        }
       } else {
         // Legacy "YYYY-MM" format
         budgetDate = new Date(budget.month + '-01');
+        console.log('📅 Parsed legacy format:', budgetDate.toISOString());
       }
+      
       setSelectedMonth(budgetDate);
       
       setSelectedCategoryIds(budget.categoryBudgets.map((cb: CategoryBudget) => cb.categoryId));
