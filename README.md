@@ -21,34 +21,33 @@ SlipScan is a comprehensive mobile application built with React Native and Expo 
 ### 🎬 Demo & Screenshots
 
 #### 📹 Demo Video
-<!-- Add your demo video here -->
-> **Demo Video Coming Soon!** 
+> **📱 SlipScan Demo - The Ledger in Action!**
 > 
-> Watch SlipScan in action - from scanning receipts to managing budgets and getting AI insights.
+> Watch how SlipScan transforms receipt management with AI-powered scanning, automatic categorization, and intelligent budget tracking.
 
-*To add your demo video:*
-1. Upload your video to YouTube, Vimeo, or GitHub
-2. Replace the placeholder above with: `[![Demo Video](video-thumbnail.png)](video-url)`
-3. Or embed directly if using a platform that supports it
+**Demo Video:** [Screen_Recording_20251105_093737_The Ledger.mp4](previewdocuments/Screen_Recording_20251105_093737_The%20Ledger.mp4)
+
+*See the complete workflow from scanning receipts to managing budgets and getting AI insights - all in one seamless experience!*
 
 #### 📱 App Screenshots
 
-<!-- Add your screenshots here -->
-| Home Dashboard | Receipt Scanning | Budget Management | Search & Filter |
+| User Authentication | Home Dashboard | Budget Management | Search & Filter |
 |---|---|---|---|
-| ![Home](screenshots/home.png) | ![Scan](screenshots/scan.png) | ![Budget](screenshots/budget.png) | ![Search](screenshots/search.png) |
-| *Main dashboard with spending overview and quick actions* | *AI-powered receipt scanning with automatic text extraction* | *Monthly budget tracking with category breakdowns* | *Advanced search and filtering capabilities* |
+| ![Login](previewdocuments/login.jpeg) | ![Home](previewdocuments/home.jpeg) | ![Budget](previewdocuments/budget.jpeg) | ![Search](previewdocuments/search.jpeg) |
+| *Secure login with biometric authentication* | *Main dashboard with spending overview and quick scan action* | *Current month budget tracking with category breakdowns* | *Advanced search and filtering capabilities* |
 
-| AI Insights | Receipt Details | Budget Creation | Settings |
+| First Time Setup | User Registration | Returning User | Past Budget History |
 |---|---|---|---|
-| ![AI](screenshots/ai-insights.png) | ![Details](screenshots/receipt-details.png) | ![Create](screenshots/create-budget.png) | ![Settings](screenshots/settings.png) |
-| *Personalized spending analysis and recommendations* | *Detailed receipt view with editing capabilities* | *Easy budget setup with category selection* | *App settings and data management* |
+| ![First Time](previewdocuments/firsttime.jpeg) | ![Sign Up](previewdocuments/signup.jpeg) | ![Returning](previewdocuments/retirning.jpeg) | ![Past Budget](previewdocuments/pastbudget.jpeg) |
+| *Onboarding experience for new users* | *Quick and easy account registration* | *Seamless return experience with biometrics* | *Historical budget data and spending analysis* |
 
-> **📸 To add your screenshots:**
-> 1. Create a `screenshots/` folder in your repository
-> 2. Add your app screenshots (recommended size: 1080x1920px for mobile)
-> 3. Update the image paths above with your actual screenshot filenames
-> 4. Consider using tools like [Figma](https://figma.com) or [App Mockup](https://app-mockup.com) to create professional mockups
+### ✨ Key Features Showcased:
+- **🔐 Biometric Authentication** - Secure app access with fingerprint/face recognition
+- **📊 Real-time Budget Tracking** - Visual progress indicators and spending summaries  
+- **🎯 Smart Categorization** - Automatic expense categorization with AI
+- **🔍 Powerful Search** - Filter receipts by multiple criteria
+- **📈 Historical Analysis** - Track spending patterns over time
+- **🚀 Quick Actions** - One-tap receipt scanning from home screen
 
 ### 🛠️ Technology Stack
 
