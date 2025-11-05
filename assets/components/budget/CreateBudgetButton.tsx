@@ -19,12 +19,12 @@ export const CreateBudgetButton: React.FC<CreateBudgetButtonProps> = ({ onPress 
 
 const styles = StyleSheet.create({
   createButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#22D3EE',
     marginHorizontal: 16,
     marginVertical: 16,
     borderRadius: 16,
     elevation: 6,
-    shadowColor: '#007AFF',
+    shadowColor: '#22D3EE',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

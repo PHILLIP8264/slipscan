@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
@@ -19,10 +20,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 }) => {
   return (
     <View style={styles.searchContainer}>
-      <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+      <Ionicons name="search" size={20} color="#000" style={styles.searchIcon} />
       <TextInput
         style={styles.searchInput}
         placeholder={placeholder}
+        placeholderTextColor={"#000"}
         value={searchQuery}
         onChangeText={onSearchChange}
         returnKeyType="search"
@@ -30,7 +32,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       />
       {searchQuery.length > 0 && (
         <TouchableOpacity onPress={onClear} style={styles.clearButton}>
-          <Ionicons name="close-circle" size={20} color="#999" />
+          <Ionicons name="close-circle" size={20} color="#000" />
         </TouchableOpacity>
       )}
     </View>
@@ -54,13 +56,14 @@ const styles = StyleSheet.create({
   },
   searchIcon: {
     marginRight: 12,
-    color: '#666',
+    color: '#000',
   },
   searchInput: {
     flex: 1,
     paddingVertical: 16,
     fontSize: 16,
-    color: '#333',
+    fontFamily: getFontFamily('extraBold'),
+    color: '#000',
   },
   clearButton: {
     padding: 6,

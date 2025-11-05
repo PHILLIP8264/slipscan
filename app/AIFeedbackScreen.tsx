@@ -8,16 +8,17 @@
  * 4. Results display
  */
 
+import { getFontFamily } from '@/utils/fonts';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import AIFeedbackService from '../services/AIFeedbackService';
 import { AIFeedbackRequest, AIFeedbackResponse } from '../types/receipt';
@@ -137,7 +138,7 @@ const AIFeedbackScreen: React.FC = () => {
       >
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color="#22D3EE" />
             <Text style={styles.loadingTitle}>Generating AI Analysis</Text>
             <Text style={styles.loadingMessage}>{loadingMessage}</Text>
             <View style={styles.loadingSteps}>
@@ -184,7 +185,7 @@ const AIFeedbackScreen: React.FC = () => {
       <View style={styles.content}>
         <View style={styles.heroSection}>
           <View style={styles.iconContainer}>
-            <Ionicons name="analytics" size={64} color="#007AFF" />
+            <Ionicons name="analytics" size={64} color="#22D3EE" />
           </View>
           
           <Text style={styles.heroTitle}>Smart Spending Analysis</Text>
@@ -197,7 +198,7 @@ const AIFeedbackScreen: React.FC = () => {
             style={styles.startButton}
             onPress={handleStartAnalysis}
           >
-            <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+            <Ionicons name="sparkles" size={20} color="#000" />
             <Text style={styles.startButtonText}>Get AI Feedback</Text>
           </TouchableOpacity>
         </View>
@@ -270,24 +271,25 @@ const AIFeedbackScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#374151',
   },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#374151',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E7',
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#1C1C1E',
+    fontFamily: getFontFamily('extraBold'),
+    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6D6D70',
+    color: '#fff',
+    fontFamily: getFontFamily('bold'),
     lineHeight: 22,
   },
   content: {
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#22D3EE',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
@@ -349,7 +351,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   startButtonText: {
-    color: '#FFFFFF',
+    color: '#000',
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,

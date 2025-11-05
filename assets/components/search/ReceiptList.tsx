@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import React from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text } from 'react-native';
 import { Receipt } from '../../../utils/localdb';
@@ -60,7 +61,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 8,
     fontSize: 14,
-    color: '#666',
+    fontFamily: getFontFamily('extraBold'),
+    color: '#fff',
   },
   receiptsList: {
     flex: 1,

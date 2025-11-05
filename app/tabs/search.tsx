@@ -1,20 +1,21 @@
+import { getFontFamily } from '@/utils/fonts';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    View
+  Alert,
+  Animated,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  View
 } from 'react-native';
 import {
-    AmountRangeFilter,
-    DateRangeFilter,
-    FilterButtons,
-    ReceiptList,
-    SearchBar,
-    type SearchFilter,
+  AmountRangeFilter,
+  DateRangeFilter,
+  FilterButtons,
+  ReceiptList,
+  SearchBar,
+  type SearchFilter,
 } from '../../assets/components/search';
 import { getUserByEmail, getUserReceipts } from '../../utils/CRUD/usercrud';
 import { Receipt } from '../../utils/localdb';
@@ -220,7 +221,7 @@ export default function SearchPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#28a745" />
+      <StatusBar barStyle="dark-content" backgroundColor="#374151" />
       
       
           
@@ -273,7 +274,7 @@ export default function SearchPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
   },
 
   statsCards: {
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   },
   statsCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
@@ -290,14 +291,14 @@ const styles = StyleSheet.create({
   },
   statsNumber: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: 'white',
+    fontFamily: getFontFamily('bold'),
+    color: '#fff',
     marginBottom: 2,
   },
   statsLabel: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600',
+    color: '#fff',
+    fontFamily: getFontFamily('extraBold'),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
     marginTop: -20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
     overflow: 'hidden',
   },
   searchSection: {

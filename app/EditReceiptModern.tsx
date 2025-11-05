@@ -1,10 +1,10 @@
+import { getFontFamily } from "@/utils/fonts";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Image,
   KeyboardAvoidingView,
@@ -14,7 +14,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import receiptProcessingService from "../services/ReceiptProcessingService";
 import { ProcessedReceipt } from "../types/receipt";
@@ -206,11 +206,11 @@ export default function EditReceipt() {
         setEditableData(receiptWithCategories);
         
         // Show JSON structure alert for debugging
-        Alert.alert(
-          "📋 Parsed JSON Structure (WITH FORCED CATEGORIES)", 
-          JSON.stringify(receiptWithCategories, null, 2),
-          [{ text: "OK" }]
-        );
+      //  Alert.alert(
+       //   "📋 Parsed JSON Structure (WITH FORCED CATEGORIES)", 
+        //  JSON.stringify(receiptWithCategories, null, 2),
+        //  [{ text: "OK" }]
+        //);
         
         setProcessingState({
           stage: 'complete',
@@ -335,14 +335,14 @@ const handleSaveReceipt = async () => {
   };
 
   const openCategoryPicker = (itemIndex: number) => {
-    console.log(`🏷️ OPEN CATEGORY PICKER - Item ${itemIndex}, isEditing: ${isEditing}`);
-    console.log('🏷️ Available categories:', categories.length, categories.map(c => c.name));
+   // console.log(`🏷️ OPEN CATEGORY PICKER - Item ${itemIndex}, isEditing: ${isEditing}`);
+    //console.log('🏷️ Available categories:', categories.length, categories.map(c => c.name));
     setSelectedItemIndex(itemIndex);
     setShowCategoryPicker(true);
   };
 
   const selectCategory = (category: Category) => {
-    Alert.alert('Debug', `Selecting category: ${category.name} for item ${selectedItemIndex}`);
+   // Alert.alert('Debug', `Selecting category: ${category.name} for item ${selectedItemIndex}`);
     if (selectedItemIndex >= 0) {
       updateItem(selectedItemIndex, 'category', category.name);
       updateItem(selectedItemIndex, 'categoryConfidence', 1.0); // Manual selection = 100% confidence
@@ -360,7 +360,7 @@ const handleSaveReceipt = async () => {
   const renderProcessingState = () => (
     <View style={styles.processingContainer}>
       <LinearGradient
-        colors={['#4285F4', '#34A853']}
+        colors={['#374151', '#4b5563']}
         style={styles.processingHeader}
       >
         <Ionicons name="receipt" size={40} color="white" />
@@ -393,10 +393,10 @@ const handleSaveReceipt = async () => {
         <View style={styles.stageContainer}>
           <ActivityIndicator 
             size="large" 
-            color="#4285F4" 
+            color="#22D3EE" 
             style={styles.spinner}
           />
-          <Text style={styles.stageMessage}>{processingState.message}</Text>
+          
         </View>
 
         {/* Processing Steps */}
@@ -417,8 +417,8 @@ const handleSaveReceipt = async () => {
                   name={step.icon as any} 
                   size={16} 
                   color={
-                    processingState.stage === step.key ? '#4285F4' :
-                    (index < getStageIndex(processingState.stage)) ? '#34A853' : '#ccc'
+                    processingState.stage === step.key ? '#22D3EE' :
+                    (index < getStageIndex(processingState.stage)) ? '#A3E635' : '#ccc'
                   } 
                 />
               </View>
@@ -446,7 +446,7 @@ const handleSaveReceipt = async () => {
     <View style={styles.modernContainer}>
       {/* Modern Header */}
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={['#A3E635', '#A3E635']}
         style={styles.modernHeader}
       >
         <View style={styles.modernHeaderContent}>
@@ -454,7 +454,7 @@ const handleSaveReceipt = async () => {
             style={styles.headerButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="white" />
+            <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
           
           <View style={styles.headerTitleContainer}>
@@ -474,7 +474,7 @@ const handleSaveReceipt = async () => {
             <Ionicons 
               name={isEditing ? "checkmark" : "pencil"} 
               size={18} 
-              color={isEditing ? "#667eea" : "white"} 
+              color={isEditing ? "#667eea" : "#000"} 
             />
           </TouchableOpacity>
         </View>
@@ -491,7 +491,7 @@ const handleSaveReceipt = async () => {
                 onPress={() => setShowImagePreview(true)}
               >
                 <View style={styles.imageIconContainer}>
-                  <Ionicons name="image-outline" size={24} color="#667eea" />
+                  <Ionicons name="image-outline" size={24} color="#22D3EE" />
                 </View>
                 <View style={styles.imageTextContainer}>
                   <Text style={styles.imageCardTitle}>Original Receipt</Text>
@@ -506,7 +506,7 @@ const handleSaveReceipt = async () => {
           <View style={styles.modernCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIconContainer}>
-                <Ionicons name="storefront-outline" size={20} color="#667eea" />
+                <Ionicons name="storefront-outline" size={20} color="#22D3EE" />
               </View>
               <Text style={styles.cardTitle}>Merchant Information</Text>
             </View>
@@ -573,7 +573,7 @@ const handleSaveReceipt = async () => {
           <View style={styles.modernCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIconContainer}>
-                <Ionicons name="receipt-outline" size={20} color="#667eea" />
+                <Ionicons name="receipt-outline" size={20} color="#22D3EE" />
               </View>
               <Text style={styles.cardTitle}>Transaction Details</Text>
             </View>
@@ -627,7 +627,7 @@ const handleSaveReceipt = async () => {
           <View style={styles.modernCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIconContainer}>
-                <Ionicons name="card-outline" size={20} color="#667eea" />
+                <Ionicons name="card-outline" size={20} color="#22D3EE" />
               </View>
               <Text style={styles.cardTitle}>Payment Summary</Text>
             </View>
@@ -712,7 +712,7 @@ const handleSaveReceipt = async () => {
           <View style={styles.modernCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIconContainer}>
-                <Ionicons name="list-outline" size={20} color="#667eea" />
+                <Ionicons name="list-outline" size={20} color="#22D3EE" />
               </View>
               <Text style={styles.cardTitle}>
                 Items ({editableData.items?.length || 0})
@@ -811,7 +811,7 @@ const handleSaveReceipt = async () => {
           <View style={styles.modernCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIconContainer}>
-                <Ionicons name="chatbubble-outline" size={20} color="#667eea" />
+                <Ionicons name="chatbubble-outline" size={20} color="#22D3EE" />
               </View>
               <Text style={styles.cardTitle}>Notes</Text>
             </View>
@@ -842,7 +842,7 @@ const handleSaveReceipt = async () => {
               disabled={isSaving}
             >
               <LinearGradient
-                colors={isSaving ? ['#ccc', '#999'] : ['#667eea', '#764ba2']}
+                colors={isSaving ? ['#ccc', '#999'] : ['#A3E635', '#A3E635']}
                 style={styles.saveButtonGradient}
               >
                 {isSaving ? (
@@ -930,7 +930,7 @@ const handleSaveReceipt = async () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
   },
   
   // Processing States
@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#4285F4',
+    backgroundColor: '#22D3EE',
     borderRadius: 4,
   },
   progressText: {
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     fontWeight: '600',
-    color: '#4285F4',
+    color: '#22D3EE',
   },
   stageContainer: {
     alignItems: 'center',
@@ -1019,7 +1019,8 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     fontSize: 16,
-    color: '#666',
+    fontFamily: getFontFamily('bold'),
+    color: '#fff',
   },
   stepLabelActive: {
     color: '#4285F4',
@@ -1027,12 +1028,14 @@ const styles = StyleSheet.create({
   },
   imagePreview: {
     alignItems: 'center',
+
     marginTop: 20,
   },
   imagePreviewTitle: {
     fontSize: 16,
     marginBottom: 10,
-    color: '#666',
+    fontFamily: getFontFamily('bold'),
+    color: '#fff',
   },
   previewImage: {
     width: 200,
@@ -1056,15 +1059,19 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    marginTop: 10,
   },
   headerContent: {
     flex: 1,
     marginLeft: 15,
+    marginTop: 10,
+    backgroundColor: '#A3E635',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: getFontFamily('bold'),
     color: 'white',
+    marginTop: 10,
   },
   headerSubtitle: {
     fontSize: 14,
@@ -1074,6 +1081,7 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 20,
+    marginTop: 10,
   },
   imageSection: {
     padding: 20,
@@ -1329,7 +1337,7 @@ const styles = StyleSheet.create({
   // Modern UI Styles
   modernContainer: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: '#374151',
   },
   modernHeader: {
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
@@ -1340,11 +1348,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#A3E635',
+    
   },
   headerButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginTop: 20,
   },
   headerTitleContainer: {
     flex: 1,
@@ -1353,13 +1364,13 @@ const styles = StyleSheet.create({
   },
   modernHeaderTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
+    fontFamily: getFontFamily('extraBold'),
+    color: '#000',
     marginBottom: 2,
   },
   modernHeaderSubtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#00',
   },
   editToggle: {
     padding: 8,

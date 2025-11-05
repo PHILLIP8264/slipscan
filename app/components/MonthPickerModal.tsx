@@ -8,14 +8,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import AIFeedbackService from '../../services/AIFeedbackService';
 import { MonthOption } from '../../types/receipt';
@@ -154,7 +154,7 @@ const MonthPickerModal: React.FC<MonthPickerModalProps> = ({
             <Ionicons 
               name="checkmark-circle" 
               size={24} 
-              color="#007AFF" 
+              color="#22D3EE" 
             />
           )}
         </View>
@@ -265,7 +265,7 @@ const MonthPickerModal: React.FC<MonthPickerModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#374151',
   },
   header: {
     flexDirection: 'row',

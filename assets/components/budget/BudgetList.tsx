@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import { Ionicons } from '@expo/vector-icons';
 import React, { ReactElement } from 'react';
 import { FlatList, RefreshControlProps, StyleSheet, Text, View } from 'react-native';
@@ -33,7 +34,7 @@ export const BudgetList: React.FC<BudgetListProps> = ({
   const EmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="wallet-outline" size={80} color="#007AFF" />
+        <Ionicons name="wallet-outline" size={80} color="#22D3EE" />
       </View>
       <Text style={styles.emptyTitle}>
         {loading ? 'Loading Budgets...' : 'No Budgets Found'}
@@ -95,14 +96,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontFamily: getFontFamily('extraBold'),
+    color: '#fff',
     marginBottom: 12,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#fff',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,

@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     marginRight: 10,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: '#fff',
     borderRadius: 25,
     elevation: 4,
     shadowColor: '#000',
@@ -87,18 +88,18 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   activeFilterButton: {
-    backgroundColor: '#4285F4',
+    backgroundColor: '#A3E635',
     elevation: 3,
     shadowOpacity: 0.2,
   },
   filterButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
+    fontFamily: getFontFamily('extraBold'),
+    color: '#000',
   },
   activeFilterButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: '#000',
+    fontFamily: getFontFamily('extraBold'),
   },
   scrollContent: {
     paddingLeft: 0,

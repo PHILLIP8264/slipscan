@@ -330,7 +330,7 @@ export default function ReceiptDetails() {
     return (
       <View style={styles.errorContainer}>
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
+          colors={['#22D3EE', '#E5398B']}
           style={styles.errorHeader}
         >
           <TouchableOpacity 
@@ -364,7 +364,7 @@ export default function ReceiptDetails() {
     >
       {/* Modern Header */}
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={['#22D3EE', '#E5398B']}
         style={styles.modernHeader}
       >
         <View style={styles.modernHeaderContent}>
@@ -859,7 +859,7 @@ export default function ReceiptDetails() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: '#374151',
   },
   
   // Loading State
@@ -952,6 +952,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 20,
   },
   headerButton: {
     padding: 8,

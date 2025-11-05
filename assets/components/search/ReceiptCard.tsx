@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Receipt } from '../../../utils/localdb';
@@ -70,7 +71,7 @@ export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, onPress }) =>
 
 const styles = StyleSheet.create({
   receiptCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     margin: 8,
     marginHorizontal: 20,
     padding: 20,
@@ -91,14 +92,14 @@ const styles = StyleSheet.create({
   },
   merchantName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: getFontFamily('bold'),
     color: '#1a1a1a',
     flex: 1,
     marginRight: 12,
   },
   amount: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: getFontFamily('bold'),
     color: '#4285F4',
   },
   receiptDetails: {
@@ -110,16 +111,17 @@ const styles = StyleSheet.create({
   category: {
     fontSize: 13,
     color: '#495057',
+    fontFamily: getFontFamily('medium'),
     backgroundColor: '#e9ecef',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    fontWeight: '600',
+    
   },
   date: {
     fontSize: 14,
     color: '#6c757d',
-    fontWeight: '500',
+    fontFamily: getFontFamily('medium'),
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -135,11 +137,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 8,
     marginBottom: 6,
-    fontWeight: '600',
+    fontFamily: getFontFamily('medium'),
   },
   ocrText: {
     fontSize: 12,
     color: '#999',
+    fontFamily: getFontFamily('extraBold'),
     marginTop: 8,
     fontStyle: 'italic',
   },
@@ -155,11 +158,11 @@ const styles = StyleSheet.create({
   taxInfo: {
     fontSize: 12,
     color: '#28a745',
-    fontWeight: '600',
+    fontFamily: getFontFamily('extraBold'),
   },
   itemCount: {
     fontSize: 12,
     color: '#6c757d',
-    fontWeight: '500',
+    fontFamily: getFontFamily('medium'),
   },
 });

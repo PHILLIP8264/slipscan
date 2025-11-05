@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import React, { useRef } from 'react';
 import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
@@ -87,9 +88,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   activeTabButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#A3E635',
     elevation: 4,
-    shadowColor: '#007AFF',
+    shadowColor: '#fff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -97,11 +98,11 @@ const styles = StyleSheet.create({
   },
   tabButtonText: {
     fontSize: 15,
-    color: 'black',
-    fontWeight: '600',
+    color: '#000',
+    fontFamily: getFontFamily('bold'),
   },
   activeTabButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: '#000',
+    fontFamily: getFontFamily('bold'),
   },
 });

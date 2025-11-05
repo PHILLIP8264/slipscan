@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     totalValue: {
         fontSize: 20,
         fontFamily: getFontFamily('extraBold'),
-        color: '#22D3EE',
+        color: '#000',
     },
     overspentRow: {
         flexDirection: 'row',

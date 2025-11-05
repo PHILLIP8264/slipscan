@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -393,7 +394,7 @@ export default function EditBudget() {
               <Text style={styles.monthText}>
                 {formatMonthForDisplay(selectedMonth)}
               </Text>
-              <Ionicons name="calendar" size={24} color="#007AFF" />
+              <Ionicons name="calendar" size={24} color="#22D3EE" />
             </TouchableOpacity>
           </View>
 
@@ -405,7 +406,7 @@ export default function EditBudget() {
                 style={styles.addCategoryButton}
                 onPress={() => setShowAddCategoryModal(true)}
               >
-                <Ionicons name="add-circle" size={20} color="#007AFF" />
+                <Ionicons name="add-circle" size={20} color="#22D3EE" />
                 <Text style={styles.addCategoryText}>Add New</Text>
               </TouchableOpacity>
             </View>
@@ -537,7 +538,7 @@ export default function EditBudget() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
   },
   loadingContainer: {
     flex: 1,
@@ -549,7 +550,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   header: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#E5398B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -558,17 +559,21 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 60 : 12,
   },
   backButton: {
+    marginTop: 20,
     padding: 8,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: getFontFamily('bold'),
     color: 'white',
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 16,
+    marginTop: 20,
+    
   },
   saveButton: {
+    marginTop: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -599,8 +604,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
+    fontFamily: getFontFamily('extraBold'),    
+    color: '#fff',
   },
   sectionSubtitle: {
     fontSize: 14,
@@ -613,7 +618,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addCategoryText: {
-    color: '#007AFF',
+    color: '#22D3EE',
     fontWeight: '600',
     marginLeft: 4,
   },
@@ -640,31 +645,31 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   totalCard: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#22D3EE',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#007AFF',
+    shadowColor: '#22D3EE',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: getFontFamily('bold'),
+    color: '#000',
     marginBottom: 8,
   },
   totalAmount: {
     fontSize: 36,
-    fontWeight: '800',
-    color: 'white',
+    fontFamily: getFontFamily('extraBold'),
+    color: '#000',
     marginBottom: 4,
   },
   totalSubtext: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#000',
   },
   contextBudgetCard: {
     backgroundColor: 'white',

@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -188,7 +189,7 @@ export const BudgetTile: React.FC<BudgetTileProps> = ({ budget, onEdit, onDelete
           style={styles.editButton} 
           onPress={() => onEdit(budget)}
         >
-          <Ionicons name="pencil" size={16} color="white" />
+          <Ionicons name="pencil" size={16} color="#000" />
           <Text style={styles.editButtonText}>Edit</Text>
         </TouchableOpacity>
 
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 8,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#fff',
   },
   monthHeader: {
     marginBottom: 16,
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
   },
   monthText: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: getFontFamily('extraBold'),
     color: '#1a1a1a',
     letterSpacing: 0.3,
   },
@@ -238,20 +239,20 @@ const styles = StyleSheet.create({
   },
   totalBudgetText: {
     fontSize: 36,
-    fontWeight: '800',
-    color: '#007AFF',
+    fontFamily: getFontFamily('bold'),
+    color: '#22D3EE',
     marginBottom: 6,
     letterSpacing: -0.5,
   },
   remainingText: {
     fontSize: 15,
     color: '#666',
-    fontWeight: '500',
+    fontFamily: getFontFamily('medium'),
   },
   categoryCountText: {
     fontSize: 13,
     color: '#999',
-    fontWeight: '500',
+    fontFamily: getFontFamily('medium'),
     marginTop: 4,
   },
   progressContainer: {
@@ -281,21 +282,21 @@ const styles = StyleSheet.create({
   },
   editButton: {
     flex: 1,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#A3E635',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
     elevation: 2,
-    shadowColor: '#007AFF',
+    shadowColor: '#A3E635',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
   editButtonText: {
-    color: 'white',
-    fontWeight: '700',
+    color: '#000',
+    fontFamily: getFontFamily('bold'),
     marginLeft: 8,
     fontSize: 15,
   },
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: 'white',
-    fontWeight: '700',
+    fontFamily: getFontFamily('bold'),
     marginLeft: 8,
     fontSize: 15,
   },

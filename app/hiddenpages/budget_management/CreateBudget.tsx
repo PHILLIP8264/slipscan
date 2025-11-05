@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -251,15 +252,9 @@ export default function CreateBudget() {
       
       // Check if budget already exists for this month
       const existingBudgets = await getUserBudgets(currentUserId);
-      console.log('🔍 Checking for existing budgets:', {
-        monthString,
-        existingBudgets: existingBudgets.map(b => ({ month: b.month, id: b._id }))
-      });
-      
       const existingBudget = existingBudgets.find(budget => budget.month === monthString);
       
       if (existingBudget) {
-        console.log('❌ Budget already exists:', existingBudget);
         Alert.alert(
           'Budget Already Exists', 
           `A budget for ${monthString} already exists. Please edit the existing budget or choose a different month.`
@@ -268,20 +263,17 @@ export default function CreateBudget() {
         return;
       }
       
-      console.log('✅ No existing budget found, proceeding with creation');
-      
       const budgetData = {
         month: monthString,
         categoryBudgets: categoryBudgets,
         userId: currentUserId // Link budget to current user
       };
       
-      console.log('🏗️ Creating budget with data:', budgetData);
-      console.log('📅 Month format being saved:', monthString);
+      console.log('Creating budget with data:', budgetData);
       
       const createdBudget = await createBudget(budgetData);
       
-      console.log('✅ Budget created successfully:', createdBudget);
+      console.log('Budget created successfully:', createdBudget);
       
       // Verify the budget was saved by checking user's budgets
       const userBudgets = await getUserBudgets(currentUserId);
@@ -312,14 +304,14 @@ export default function CreateBudget() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
+      <StatusBar barStyle="dark-content" backgroundColor="#007AFF" />
       
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Budget</Text>
         <View style={{ width: 24 }} />
@@ -345,7 +337,7 @@ export default function CreateBudget() {
                 <Text style={styles.monthText}>
                   {formatMonthForDisplay(selectedMonth)}
                 </Text>
-                <Ionicons name="calendar" size={24} color="#007AFF" />
+                <Ionicons name="calendar" size={24} color="#22D3EE" />
               </TouchableOpacity>
             </View>
 
@@ -470,10 +462,10 @@ export default function CreateBudget() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
   },
   header: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#E5398B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -483,14 +475,16 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    marginTop: 20,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'white',
+    color: '#000',
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 16,
+    marginTop: 20,
   },
   saveButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -503,7 +497,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: 'white',
-    fontWeight: '600',
+    fontFamily: getFontFamily('bold'),
   },
   content: {
     flex: 1,
@@ -523,15 +517,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
+    fontFamily: getFontFamily('semiBold'),
+    color: '#fff',
   },
   addCategoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   addCategoryText: {
-    color: '#007AFF',
+    color: '#22D3EE',
     fontWeight: '600',
     marginLeft: 4,
   },
@@ -667,12 +661,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   bottomSection: {
-    backgroundColor: 'white',
+    backgroundColor: '#374151',
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: '#000',
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -727,7 +721,7 @@ const styles = StyleSheet.create({
   },
   saveButtonFixed: {
     flex: 2,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#22D3EE',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,

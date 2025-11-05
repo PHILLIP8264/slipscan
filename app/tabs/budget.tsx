@@ -1,3 +1,4 @@
+import { getFontFamily } from '@/utils/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -304,7 +305,7 @@ export default function BudgetPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
+      <StatusBar barStyle="dark-content" backgroundColor="#007AFF" />
       
 
 
@@ -340,7 +341,7 @@ export default function BudgetPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
   },
 
   summaryCards: {
@@ -365,7 +366,7 @@ const styles = StyleSheet.create({
   },
   summaryAmount: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: getFontFamily('extraBold'),
     color: 'white',
   },
   content: {
@@ -373,10 +374,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
   },
   headerSection: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#374151',
   },
   listSection: {
     flex: 1,
