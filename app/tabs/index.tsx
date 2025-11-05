@@ -16,8 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { /* clearAllBudgets, */ getUserBudgetByMonth } from '../../utils/CRUD/budgetcrud';
-// import { clearAllReceipts } from '../../utils/CRUD/receiptcrud';
+import { getUserBudgetByMonth } from '../../utils/CRUD/budgetcrud';
 import { getUserByEmail } from '../../utils/CRUD/usercrud';
 import DocumentScanner from '../../utils/DocumentScanner';
 import { globalTextStyles } from "../../utils/globalStyles";
@@ -199,88 +198,7 @@ export default function Index() {
     }
   };
 
-  /* 
-  // COMMENTED OUT - Clear All Budgets functionality
-  const handleClearAllBudgets = async () => {
-    Alert.alert(
-      "🗑️ Clear All Budgets",
-      "This will permanently delete ALL budgets from the database. This action cannot be undone.\n\nUse this to fix budget overspending issues caused by test/mock data.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "DELETE ALL",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await clearAllBudgets();
-              setBudgetData(null);
-              Alert.alert(
-                "✅ Success",
-                "All budgets have been cleared from the database. You can now create fresh budgets.",
-                [{ text: "OK" }]
-              );
-            } catch (error) {
-              console.error("Error clearing budgets:", error);
-              Alert.alert(
-                "❌ Error",
-                "Failed to clear budgets. Please try again.",
-                [{ text: "OK" }]
-              );
-            }
-          }
-        }
-      ]
-    );
-  };
 
-  // COMMENTED OUT - Clear All Receipts functionality
-  const handleClearAllReceipts = async () => {
-    Alert.alert(
-      "🗑️ Clear All Receipts",
-      "This will permanently delete ALL receipt data from the database. This action cannot be undone.\n\nThis includes all scanned receipts, transaction data, and spending history.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "DELETE ALL",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const success = await clearAllReceipts();
-              if (success) {
-                // Refresh the data to update the UI
-                await loadBudgetData();
-                Alert.alert(
-                  "✅ Success",
-                  "All receipts have been cleared from the database. Your spending history has been reset.",
-                  [{ text: "OK" }]
-                );
-              } else {
-                Alert.alert(
-                  "⚠️ Partial Success",
-                  "Most receipts were deleted, but some errors occurred. Check the console for details.",
-                  [{ text: "OK" }]
-                );
-              }
-            } catch (error) {
-              console.error("Error clearing receipts:", error);
-              Alert.alert(
-                "❌ Error",
-                "Failed to clear receipts. Please try again.",
-                [{ text: "OK" }]
-              );
-            }
-          }
-        }
-      ]
-    );
-  };
-  */
 
   return (
     <SafeAreaView style={styles.container}>
@@ -378,29 +296,7 @@ export default function Index() {
           </TouchableOpacity>
 
 
-          {/* 
-          // COMMENTED OUT - Clear All Budgets and Receipts buttons
-          
-          {/* Clear Budgets Button (Development/Debug) */}
-          {/*
-          <TouchableOpacity
-            style={styles.clearBudgetsButton}
-            onPress={handleClearAllBudgets}
-          >
-            <Ionicons name="trash" size={20} color="#dc2626" />
-            <Text style={styles.clearBudgetsButtonText}>Clear All Budgets</Text>
-          </TouchableOpacity>
 
-          {/* Clear Receipts Button (Development/Debug) */}
-          {/*
-          <TouchableOpacity
-            style={styles.clearReceiptsButton}
-            onPress={handleClearAllReceipts}
-          >
-            <Ionicons name="receipt-outline" size={20} color="#dc2626" />
-            <Text style={styles.clearReceiptsButtonText}>Clear All Receipts</Text>
-          </TouchableOpacity>
-          */}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -554,46 +450,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 6,
   },
-  /*
-  // COMMENTED OUT - Clear Budgets Button Styles
-  clearBudgetsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  clearBudgetsButtonText: {
-    color: '#dc2626',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  // Clear Receipts Button Styles
-  clearReceiptsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  clearReceiptsButtonText: {
-    color: '#dc2626',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  */
+
   // Category Breakdown Container
   categoryBreakdownContainer: {
     backgroundColor: '#fff',
